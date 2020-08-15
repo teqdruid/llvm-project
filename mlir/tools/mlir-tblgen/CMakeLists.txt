@@ -7,6 +7,7 @@ set(LLVM_LINK_COMPONENTS
 add_tablegen(mlir-tblgen MLIR
   DialectGen.cpp
   EnumsGen.cpp
+  GenUtilities.cpp
   LLVMIRConversionGen.cpp
   LLVMIRIntrinsicGen.cpp
   mlir-tblgen.cpp
