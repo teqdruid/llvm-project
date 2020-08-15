@@ -31,7 +31,10 @@
 using namespace mlir;
 using namespace mlir::tblgen;
 
-extern llvm::cl::opt<std::string> selectedDialect;
+static llvm::cl::OptionCategory typedefGenCat("Options for -gen-typedef-*");
+static llvm::cl::opt<std::string>
+    selectedDialect("typedefs-dialect", llvm::cl::desc("Gen types for this dialect"),
+                    llvm::cl::cat(typedefGenCat), llvm::cl::CommaSeparated);
 
 /// Utility iterator used for filtering records for a specific typeDef.
 namespace {
@@ -40,16 +43,6 @@ using TypeDefFilterIterator =
                           std::function<bool(const llvm::Record *)>>;
 } // end anonymous namespace
 
-/// Given a set of records for a T, filter the ones that correspond to
-/// the given dialect name.
-static iterator_range<TypeDefFilterIterator>
-filterForDialect(ArrayRef<llvm::Record *> records, StringRef dialectName) {
-  auto filterFn = [&](const llvm::Record *record) {
-    return TypeDef(record).getDialect().getName().equals(dialectName);
-  };
-  return {TypeDefFilterIterator(records.begin(), records.end(), filterFn),
-          TypeDefFilterIterator(records.end(), records.end(), filterFn)};
-}
 
 //===----------------------------------------------------------------------===//
 // GEN: TypeDef declarations
@@ -58,25 +51,74 @@ filterForDialect(ArrayRef<llvm::Record *> records, StringRef dialectName) {
 /// The code block for the start of a typeDef class declaration.
 ///
 /// {0}: The name of the typeDef class.
-/// {1}: The typeDef namespace.
+/// {1}: The typeDef storage class namespace.
+/// {2}: The storage class name
+/// {3}: The list of members as a list of arguments
 static const char *const typeDefDeclBeginStr = R"(
-class {0} : public ::mlir::TypeDef {
-  explicit {0}(::mlir::MLIRContext *context)
-    : ::mlir::TypeDef(getDialectNamespace(), context,
-      ::mlir::TypeID::get<{0}>()) {{
-    initialize();
+  namespace {1} {
+    class {1};
   }
-  void initialize();
-  friend class ::mlir::MLIRContext;
+  class Type : public {0}::TypeBase<{0}, Type,
+                                        {1}::{2}> {
 public:
-  static ::llvm::StringRef getTypeDefNamespace() { return "{1}"; }
+    /// Inherit some necessary constructors from 'TypeBase'.
+    using Base::Base;
+
+    static {0} get(::mlir::MLIRContext* ctxt{3});
 )";
+
+/// The code block for the verifyConstructionInvariants and getChecked
+///
+/// {0}: List of members, arguments style
+/// {1}: C++ type class name
+static const char *const typeDefDeclVerifyStr = R"(
+    static LogicalResult verifyConstructionInvariants(Location loc{0});
+    static {1} getChecked(Location loc{0});
+)";
+
+
+    // static StringRef getMnemonic() { return "{3}"; }
+    // static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
+    // void print(mlir::DialectAsmPrinter& printer) const;
+
+static std::string constructMembersArguments(TypeDef& typeDef) {
+  SmallVector<TypeMember, 4> members;
+  typeDef.getMembers(members);
+
+  std::string membersArguments;
+  llvm::raw_string_ostream args(membersArguments);
+  for (auto member : members) {
+    args << llvm::formatv(", {0} {1}", member.getCppType(), member.getName());
+  }
+  return membersArguments;
+}
+
+static std::string constructMembersNames(TypeDef& typeDef) {
+  SmallVector<TypeMember, 4> members;
+  typeDef.getMembers(members);
+
+  std::string membersArguments;
+  llvm::raw_string_ostream args(membersArguments);
+  for (auto member : members) {
+    args << llvm::formatv(", {1}", member.getName());
+  }
+  return membersArguments;
+}
 
 /// Generate the declaration for the given typeDef class.
 static void emitTypeDefDecl(TypeDef &typeDef, raw_ostream &os) {
-  // Emit the start of the decl.
-  // std::string cppName = typeDef.getCppClassName();
-  // os << llvm::formatv(typeDefDeclBeginStr, cppName, typeDef.getName());
+  std::string membersArguments = constructMembersArguments(typeDef);
+  // std::string membersNames;
+  os << llvm::formatv(typeDefDeclBeginStr,
+            typeDef.getCppClassName(),
+            typeDef.getStorageNamespace(),
+            typeDef.getStorageClassName(),
+            membersArguments);
+  
+  if (typeDef.genVerifyInvariantsDecl())
+    os << llvm::formatv(typeDefDeclVerifyStr,
+            membersArguments,
+            typeDef.getCppClassName());
 
   // // Check for any attributes/types registered to this typeDef.  If there are,
   // // add the hooks for parsing/printing.
@@ -101,17 +143,16 @@ static void emitTypeDefDecl(TypeDef &typeDef, raw_ostream &os) {
   // os << "};\n";
 }
 
-
+/// Find all the TypeDefs for the specified dialect. If no dialect specified and
+/// can only find one dialect's types, use that.
 static bool findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
-                                          SmallVectorImpl<TypeDef>& typeDefs) {
+                            SmallVectorImpl<TypeDef>& typeDefs) {
   auto recDefs = recordKeeper.getAllDerivedDefinitions("TypeDef");
   auto defs = llvm::map_range(recDefs,
     [&](const llvm::Record* rec) { return TypeDef(rec); } );
   if (defs.empty())
     return false;
   
-  // std::vector<TypeDef> tds(defs.begin(), defs.end());
-
   StringRef dialectName;
   if (selectedDialect.getNumOccurrences() == 0) {
     if (defs.empty())
@@ -139,7 +180,6 @@ static bool findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
     if (typeDef.getDialect().getName().equals(dialectName))
       typeDefs.push_back(typeDef);
   }
-  // llvm::outs() << "selected dialect: " << dialectName << "\n";
   return false;
 }
 
@@ -152,7 +192,7 @@ static bool emitTypeDefDecls(const llvm::RecordKeeper &recordKeeper,
     return true;
 
   for (auto typeDef : typeDefs) {
-    os << typeDef.getName() << "\n";
+    emitTypeDefDecl(typeDef, os);
   }
 
   return false;

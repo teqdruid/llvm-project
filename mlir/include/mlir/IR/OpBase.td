@@ -2330,7 +2330,7 @@ class TypeDef<Dialect dialect, string name> {
 
   // This is the list of fields in the storage class (and list of parameters
   // in the creation functions). If empty, don't use or generate a storage class
-  dag members;
+  dag members = (ins);
 
   // Use the lowercased name as the keyword for parsing/printing. Specify only
   // if you want tblgen to automatically generate the printer/parser for this

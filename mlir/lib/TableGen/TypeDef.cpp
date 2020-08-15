@@ -23,6 +23,7 @@ Dialect TypeDef::getDialect() const {
 }
 
 StringRef TypeDef::getName() const { return def->getName(); }
+StringRef TypeDef::getCppClassName() const { return def->getValueAsString("cppClassName"); }
 
 StringRef TypeDef::getStorageClassName() const { return def->getValueAsString("storageClass"); }
 StringRef TypeDef::getStorageNamespace() const { return def->getValueAsString("storageNamespace"); }
@@ -33,9 +34,11 @@ bool TypeDef::genStorageClass() const{
 bool TypeDef::hasStorageCustomConstructor() const{
   return def->getValueAsBit("hasStorageCustomConstructor");
 }
-llvm::Optional<ArrayRef<TypeMember>> TypeDef::getMembers() const{
-  // auto membersDag = def->getValueAsDag("members");
-  return ArrayRef<TypeMember>();
+void TypeDef::getMembers(SmallVectorImpl<TypeMember>& members) const{
+  auto membersDag = def->getValueAsDag("members");
+  if (membersDag != nullptr)
+    for (unsigned i=0; i<membersDag->getNumArgs(); i++)
+      members.push_back(TypeMember(membersDag, i));
 }
 StringRef TypeDef::getMnemonic() const{
   return def->getValueAsString("mnemonic");
@@ -64,4 +67,23 @@ bool TypeDef::operator==(const TypeDef &other) const {
 
 bool TypeDef::operator<(const TypeDef &other) const {
   return getName() < other.getName();
+}
+
+
+StringRef TypeMember::getName() const {
+  return def->getArgName(num)->getValue();
+}
+StringRef TypeMember::getAllocator() const {
+
+}
+StringRef TypeMember::getCppType() const {
+  auto memberType = def->getArg(num);
+  if (auto stringType = dyn_cast<llvm::StringInit>(memberType)) {
+    return stringType->getValue();
+  } else if (auto typeMember = dyn_cast<llvm::DefInit>(memberType)) {
+    return typeMember->getDef()->getValueAsString("cppType");
+  } else {
+    llvm::errs() << "Members DAG arguments must be either strings or defs which inherit from TypeMember\n";
+    return StringRef();
+  }
 }

@@ -30,6 +30,8 @@ def CompoundTypeA : TestType<"CompoundA"> {
         // Some C++ type
         "SomeCppStruct": $exampleCppType
     );
+
+    let genVerifyInvariantsDecl = 1;
 }
 
 // Base class for standard types

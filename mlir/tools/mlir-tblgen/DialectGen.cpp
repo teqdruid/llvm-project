@@ -30,7 +30,7 @@ using namespace mlir;
 using namespace mlir::tblgen;
 
 static llvm::cl::OptionCategory dialectGenCat("Options for -gen-dialect-*");
-llvm::cl::opt<std::string>
+static llvm::cl::opt<std::string>
     selectedDialect("dialect", llvm::cl::desc("The dialect to gen for"),
                     llvm::cl::cat(dialectGenCat), llvm::cl::CommaSeparated);
 

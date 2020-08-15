@@ -18,6 +18,7 @@
 
 namespace llvm {
 class Record;
+class DagInit;
 } // end namespace llvm
 
 namespace mlir {
@@ -52,7 +53,7 @@ public:
   bool hasStorageCustomConstructor() const;
 
   // Return the list of fields for the storage class and constructors
-  llvm::Optional<ArrayRef<TypeMember>> getMembers() const;
+  void getMembers(SmallVectorImpl<TypeMember>&) const;
 
   // Return the keyword/mnemonic to use in the printer/parser methods if we are
   // supposed to auto-generate them
@@ -96,14 +97,14 @@ private:
 
 class TypeMember {
 public:
-  explicit TypeMember(const llvm::Record *def, unsigned num) : def(def), num(num) {}
+  explicit TypeMember(const llvm::DagInit *def, unsigned num) : def(def), num(num) {}
 
   StringRef getName() const;
   StringRef getAllocator() const;
   StringRef getCppType() const;
 
 private:
-  const llvm::Record *def;
+  const llvm::DagInit *def;
   const unsigned num;
 };
 
