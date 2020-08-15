@@ -43,7 +43,7 @@ def IntegerType : StdType<"IntegerType"> {
     let parser = [{}];
     let printer = [{}];
     let mnemonic = "int";
-    let verifyInvariantsDecl = 1;
+    let genVerifyInvariantsDecl = 1;
     let members = (
         ins
         "SignednessSemantics":$signedness, 

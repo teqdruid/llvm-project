@@ -2316,36 +2316,39 @@ def replaceWithValue;
 
 // Define a new type belonging to a dialect and called 'name'
 class TypeDef<Dialect dialect, string name> {
-    // Name of storage class to generate or use
-    string storageClass = name # "Storage";
-    // Namespace (withing dialect c++ namespace) in which the storage class resides
-    string storageNamespace = "detail";
-    // Should we generate the storage class? (Or use an existing one?)
-    bit genStorageClass = 1;
-    // Should we generate the storage class constructor?
-    bit hasStorageCustomConstructor = 0;
+  Dialect owningDialect = dialect;
+  string cppClassName = name;
 
-    // This is the list of fields in the storage class (and list of parameters
-    // in the creation functions). If empty, don't use or generate a storage class
-    dag members;
+  // Name of storage class to generate or use
+  string storageClass = name # "Storage";
+  // Namespace (withing dialect c++ namespace) in which the storage class resides
+  string storageNamespace = "detail";
+  // Should we generate the storage class? (Or use an existing one?)
+  bit genStorageClass = 1;
+  // Should we generate the storage class constructor?
+  bit hasStorageCustomConstructor = 0;
 
-    // Use the lowercased name as the keyword for parsing/printing. Specify only
-    // if you want tblgen to automatically generate the printer/parser for this
-    // type.
-    string mnemonic = ?;
+  // This is the list of fields in the storage class (and list of parameters
+  // in the creation functions). If empty, don't use or generate a storage class
+  dag members;
 
-    // If null, generate print/parser methods only if 'mnemonic' is specified
-    // If an empty code block, generate just the declarations.
-    // If a non-empty code block, just use that code as the definition code.
-    code printer = ?;
-    code parser = ?;
+  // Use the lowercased name as the keyword for parsing/printing. Specify only
+  // if you want tblgen to automatically generate the printer/parser for this
+  // type.
+  string mnemonic = ?;
 
-    // If set, generate accessors for each TypeMember
-    bit genAccessors = 1;
-    // Generate the verifyConstructionInvariants declaration and getChecked method
-    bit genVerifyInvariantsDecl = 0;
-    // Extra code to include in the class declaration
-    code extraDecls;
+  // If null, generate print/parser methods only if 'mnemonic' is specified
+  // If an empty code block, generate just the declarations.
+  // If a non-empty code block, just use that code as the definition code.
+  code printer = ?;
+  code parser = ?;
+
+  // If set, generate accessors for each TypeMember
+  bit genAccessors = 1;
+  // Generate the verifyConstructionInvariants declaration and getChecked method
+  bit genVerifyInvariantsDecl = 0;
+  // Extra code to include in the class declaration
+  code extraDecls;
 }
 
 // 'Members' should be subclasses of this or simple strings (which is a

@@ -16,7 +16,13 @@
 using namespace mlir;
 using namespace mlir::tblgen;
 
-StringRef TypeDef::getName() const { return def->getValueAsString("name"); }
+Dialect TypeDef::getDialect() const {
+  return Dialect(
+    dyn_cast<llvm::DefInit>(def->getValue("owningDialect")->getValue())->getDef()
+  );
+}
+
+StringRef TypeDef::getName() const { return def->getName(); }
 
 StringRef TypeDef::getStorageClassName() const { return def->getValueAsString("storageClass"); }
 StringRef TypeDef::getStorageNamespace() const { return def->getValueAsString("storageNamespace"); }

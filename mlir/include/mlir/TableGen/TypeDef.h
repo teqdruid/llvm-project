@@ -9,10 +9,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_TABLEGEN_DIALECT_H_
-#define MLIR_TABLEGEN_DIALECT_H_
+#ifndef MLIR_TABLEGEN_TYPEDEF_H
+#define MLIR_TABLEGEN_TYPEDEF_H
 
 #include "mlir/Support/LLVM.h"
+#include "mlir/TableGen/Dialect.h"
 #include <string>
 
 namespace llvm {
@@ -30,8 +31,14 @@ class TypeDef {
 public:
   explicit TypeDef(const llvm::Record *def) : def(def) {}
 
-  // Returns the name of this dialect.
+  // Get the dialect for which this type belongs
+  Dialect getDialect() const;
+
+  // Returns the name of this TypeDef record
   StringRef getName() const;
+
+  // Returns the name of the C++ class to generate
+  StringRef getCppClassName() const;
 
   // Returns the name of the storage class for this type
   StringRef getStorageClassName() const;
@@ -103,4 +110,4 @@ private:
 } // end namespace tblgen
 } // end namespace mlir
 
-#endif // MLIR_TABLEGEN_DIALECT_H_
+#endif // MLIR_TABLEGEN_TYPEDEF_H
