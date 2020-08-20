@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/TableGen/TypeDef.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/ADT/StringExtras.h"
 
 using namespace mlir;
 using namespace mlir::tblgen;
@@ -40,14 +42,35 @@ void TypeDef::getMembers(SmallVectorImpl<TypeMember>& members) const{
     for (unsigned i=0; i<membersDag->getNumArgs(); i++)
       members.push_back(TypeMember(membersDag, i));
 }
-StringRef TypeDef::getMnemonic() const{
-  return def->getValueAsString("mnemonic");
+llvm::Optional<StringRef> TypeDef::getMnemonic() const{
+  auto code = def->getValue("mnemonic");
+  if (llvm::StringInit *SI = dyn_cast<llvm::StringInit>(code->getValue()))
+    return SI->getValue();
+  if (isa<llvm::UnsetInit>(code->getValue()))
+    return llvm::Optional<StringRef>();
+
+  llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
+    "', field `mnemonic' does not have a string initializer!");
 }
-StringRef TypeDef::getPrinterCode() const{
-  return def->getValueAsString("printer");
+llvm::Optional<StringRef> TypeDef::getPrinterCode() const{
+  auto code = def->getValue("printer");
+  if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
+    return CI->getValue();
+  if (isa<llvm::UnsetInit>(code->getValue()))
+    return llvm::Optional<StringRef>();
+
+  llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
+    "', field `printer' does not have a code initializer!");
 }
-StringRef TypeDef::getParserCode() const{
-  return def->getValueAsString("parser");
+llvm::Optional<StringRef> TypeDef::getParserCode() const{
+  auto code = def->getValue("parser");
+  if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
+    return CI->getValue();
+  if (isa<llvm::UnsetInit>(code->getValue()))
+    return llvm::Optional<StringRef>();
+
+  llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
+    "', field `parser' does not have a code initializer!");
 }
 bool TypeDef::genAccessors() const{
   return def->getValueAsBit("genAccessors");

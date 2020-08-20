@@ -2317,10 +2317,10 @@ def replaceWithValue;
 // Define a new type belonging to a dialect and called 'name'
 class TypeDef<Dialect dialect, string name> {
   Dialect owningDialect = dialect;
-  string cppClassName = name;
+  string cppClassName = name # "Type";
 
   // Name of storage class to generate or use
-  string storageClass = name # "Storage";
+  string storageClass = name # "TypeStorage";
   // Namespace (withing dialect c++ namespace) in which the storage class resides
   string storageNamespace = "detail";
   // Should we generate the storage class? (Or use an existing one?)
@@ -2348,7 +2348,7 @@ class TypeDef<Dialect dialect, string name> {
   // Generate the verifyConstructionInvariants declaration and getChecked method
   bit genVerifyInvariantsDecl = 0;
   // Extra code to include in the class declaration
-  code extraDecls;
+  code extraDecls = [{}];
 }
 
 // 'Members' should be subclasses of this or simple strings (which is a

@@ -38,7 +38,7 @@ def CompoundTypeA : TestType<"CompoundA"> {
 class StdType<string name> : TypeDef<StandardOps_Dialect, name> { }
 
 def IndexType : StdType<"IndexType"> {
-    let mnemonic = "index";
+    // let mnemonic = "index";
 }
 
 def IntegerType : StdType<"IntegerType"> {

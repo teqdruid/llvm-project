@@ -50,6 +50,7 @@ public:
   // Returns true if we should generate the storage class
   bool genStorageClass() const;
 
+  // I don't remember what this is for or how it'd work...
   bool hasStorageCustomConstructor() const;
 
   // Return the list of fields for the storage class and constructors
@@ -57,17 +58,17 @@ public:
 
   // Return the keyword/mnemonic to use in the printer/parser methods if we are
   // supposed to auto-generate them
-  StringRef getMnemonic() const;
+  llvm::Optional<StringRef> getMnemonic() const;
 
   // Returns the code to use as the types printer method. If empty, generate
   // just the declaration. If null and mnemonic is non-null, generate the
   // declaration and definition.
-  StringRef getPrinterCode() const;
+  llvm::Optional<StringRef> getPrinterCode() const;
 
   // Returns the code to use as the types parser method. If empty, generate
   // just the declaration. If null and mnemonic is non-null, generate the
   // declaration and definition.
-  StringRef getParserCode() const;
+  llvm::Optional<StringRef> getParserCode() const;
 
 
   // Should we generate accessors based on the types members?
