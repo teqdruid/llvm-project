@@ -126,8 +126,6 @@ public:
 /// {1}: The list of members as a list of arguments
 static const char *const typeDefAfterExtra = R"(
 
-    static {0} get(::mlir::MLIRContext* ctxt{1});
-
     static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
     void print(mlir::DialectAsmPrinter& printer) const;
 
@@ -252,6 +250,9 @@ namespace {0} {{
       bool operator==(const KeyTy &key) const {{
           return key == KeyTy({4});
       }
+
+      static llvm::hash_code hashKey(const KeyTy &key) {
+        auto [{4}] = key;
 )";
 
 /// The storage class' constructor template
@@ -298,6 +299,15 @@ static bool emitStorageClass(TypeDef typeDef,
             memberInits,
             memberList,
             memberTypeList);
+  os << "    return llvm::hash_combine(\n";
+  for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
+    os << llvm::formatv("      llvm::hash_value({0})", memberIter->getName());
+    if (memberIter < members.end() - 1) {
+      os << ",\n";
+    }
+  }
+  os << ");\n";
+  os << "  }\n";
 
   if (typeDef.hasStorageCustomConstructor())
     os << "static " << typeDef.getStorageClassName() << " *construct(TypeStorageAllocator &allocator, const KeyTy &key);\n";
@@ -360,14 +370,19 @@ static bool emitParserAutogen(TypeDef typeDef, raw_ostream& os) {
 // Print all the typedef-specific definition code
 static bool emitTypeDefDef(TypeDef typeDef,
                            raw_ostream& os) {
+  SmallVector<TypeMember, 4> members;
+  typeDef.getMembers(members);
 
   if (typeDef.genStorageClass() && typeDef.getNumMembers() > 0)
     if (emitStorageClass(typeDef, os))
       return true;
 
+  // auto memberNames = llvm::map_range(members, [](TypeMember member) { return member.getName(); });
+  // os << typeDef.getCppClassName() << " " << typeDef.getCppClassName() << "::get(::mlir::MLIRContext* ctxt"
+  //    << llvm::join(memberNames, ", ") << ") {\n";
+  // os << "  return Base::get"
   if (typeDef.genAccessors()) {
-    SmallVector<TypeMember, 4> members;
-    typeDef.getMembers(members);
+
 
     for (auto member : members) {
       SmallString<16> name = member.getName();
@@ -376,6 +391,7 @@ static bool emitTypeDefDef(TypeDef typeDef,
         member.getCppType(), name, member.getName(), typeDef.getCppClassName());
     }
   }
+
 
   auto printerCode = typeDef.getPrinterCode();
   if (printerCode) {
