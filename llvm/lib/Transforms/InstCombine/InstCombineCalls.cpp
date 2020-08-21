@@ -1199,40 +1199,52 @@ Instruction *InstCombinerImpl::visitCallInst(CallInst &CI) {
     break;
   }
   case Intrinsic::copysign: {
-    if (SignBitMustBeZero(II->getArgOperand(1), &TLI)) {
+    Value *Mag = II->getArgOperand(0), *Sign = II->getArgOperand(1);
+    if (SignBitMustBeZero(Sign, &TLI)) {
       // If we know that the sign argument is positive, reduce to FABS:
-      // copysign X, Pos --> fabs X
-      Value *Fabs = Builder.CreateUnaryIntrinsic(Intrinsic::fabs,
-                                                 II->getArgOperand(0), II);
+      // copysign Mag, +Sign --> fabs Mag
+      Value *Fabs = Builder.CreateUnaryIntrinsic(Intrinsic::fabs, Mag, II);
       return replaceInstUsesWith(*II, Fabs);
     }
     // TODO: There should be a ValueTracking sibling like SignBitMustBeOne.
     const APFloat *C;
-    if (match(II->getArgOperand(1), m_APFloat(C)) && C->isNegative()) {
+    if (match(Sign, m_APFloat(C)) && C->isNegative()) {
       // If we know that the sign argument is negative, reduce to FNABS:
-      // copysign X, Neg --> fneg (fabs X)
-      Value *Fabs = Builder.CreateUnaryIntrinsic(Intrinsic::fabs,
-                                                 II->getArgOperand(0), II);
+      // copysign Mag, -Sign --> fneg (fabs Mag)
+      Value *Fabs = Builder.CreateUnaryIntrinsic(Intrinsic::fabs, Mag, II);
       return replaceInstUsesWith(*II, Builder.CreateFNegFMF(Fabs, II));
     }
 
     // Propagate sign argument through nested calls:
-    // copysign X, (copysign ?, SignArg) --> copysign X, SignArg
-    Value *SignArg;
-    if (match(II->getArgOperand(1),
-              m_Intrinsic<Intrinsic::copysign>(m_Value(), m_Value(SignArg))))
-      return replaceOperand(*II, 1, SignArg);
+    // copysign Mag, (copysign ?, X) --> copysign Mag, X
+    Value *X;
+    if (match(Sign, m_Intrinsic<Intrinsic::copysign>(m_Value(), m_Value(X))))
+      return replaceOperand(*II, 1, X);
+
+    // Peek through changes of magnitude's sign-bit. This call rewrites those:
+    // copysign (fabs X), Sign --> copysign X, Sign
+    // copysign (fneg X), Sign --> copysign X, Sign
+    if (match(Mag, m_FAbs(m_Value(X))) || match(Mag, m_FNeg(m_Value(X))))
+      return replaceOperand(*II, 0, X);
 
     break;
   }
   case Intrinsic::fabs: {
-    Value *Cond;
-    Constant *LHS, *RHS;
+    Value *Cond, *TVal, *FVal;
     if (match(II->getArgOperand(0),
-              m_Select(m_Value(Cond), m_Constant(LHS), m_Constant(RHS)))) {
-      CallInst *Call0 = Builder.CreateCall(II->getCalledFunction(), {LHS});
-      CallInst *Call1 = Builder.CreateCall(II->getCalledFunction(), {RHS});
-      return SelectInst::Create(Cond, Call0, Call1);
+              m_Select(m_Value(Cond), m_Value(TVal), m_Value(FVal)))) {
+      // fabs (select Cond, TrueC, FalseC) --> select Cond, AbsT, AbsF
+      if (isa<Constant>(TVal) && isa<Constant>(FVal)) {
+        CallInst *AbsT = Builder.CreateCall(II->getCalledFunction(), {TVal});
+        CallInst *AbsF = Builder.CreateCall(II->getCalledFunction(), {FVal});
+        return SelectInst::Create(Cond, AbsT, AbsF);
+      }
+      // fabs (select Cond, -FVal, FVal) --> fabs FVal
+      if (match(TVal, m_FNeg(m_Specific(FVal))))
+        return replaceOperand(*II, 0, FVal);
+      // fabs (select Cond, TVal, -TVal) --> fabs TVal
+      if (match(FVal, m_FNeg(m_Specific(TVal))))
+        return replaceOperand(*II, 0, TVal);
     }
 
     LLVM_FALLTHROUGH;
