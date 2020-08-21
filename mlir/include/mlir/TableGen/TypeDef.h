@@ -14,7 +14,9 @@
 
 #include "mlir/Support/LLVM.h"
 #include "mlir/TableGen/Dialect.h"
+#include "llvm/TableGen/Record.h"
 #include <string>
+#include <functional>
 
 namespace llvm {
 class Record;
@@ -55,6 +57,11 @@ public:
 
   // Return the list of fields for the storage class and constructors
   void getMembers(SmallVectorImpl<TypeMember>&) const;
+  unsigned getNumMembers() const;
+
+  // Iterate though members, applying a map function before adding to list
+  template <typename T>
+  void getMembersAs(SmallVectorImpl<T>& members, std::function<T (TypeMember)> map) const;
 
   // Return the keyword/mnemonic to use in the printer/parser methods if we are
   // supposed to auto-generate them
@@ -108,6 +115,14 @@ private:
   const llvm::DagInit *def;
   const unsigned num;
 };
+
+template <typename T>
+void TypeDef::getMembersAs(SmallVectorImpl<T>& members, std::function<T (TypeMember)> map) const {
+  auto membersDag = def->getValueAsDag("members");
+  if (membersDag != nullptr)
+    for (unsigned i=0; i<membersDag->getNumArgs(); i++)
+      members.push_back(map(TypeMember(membersDag, i)));
+}
 
 } // end namespace tblgen
 } // end namespace mlir

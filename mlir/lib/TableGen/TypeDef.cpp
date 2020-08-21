@@ -36,21 +36,27 @@ bool TypeDef::genStorageClass() const{
 bool TypeDef::hasStorageCustomConstructor() const{
   return def->getValueAsBit("hasStorageCustomConstructor");
 }
-void TypeDef::getMembers(SmallVectorImpl<TypeMember>& members) const{
+void TypeDef::getMembers(SmallVectorImpl<TypeMember>& members) const {
   auto membersDag = def->getValueAsDag("members");
   if (membersDag != nullptr)
     for (unsigned i=0; i<membersDag->getNumArgs(); i++)
       members.push_back(TypeMember(membersDag, i));
 }
+unsigned TypeDef::getNumMembers() const {
+  auto membersDag = def->getValueAsDag("members");
+  if (membersDag == nullptr)
+    return 0;
+  return membersDag->getNumArgs();
+}
 llvm::Optional<StringRef> TypeDef::getMnemonic() const{
   auto code = def->getValue("mnemonic");
-  if (llvm::StringInit *SI = dyn_cast<llvm::StringInit>(code->getValue()))
-    return SI->getValue();
+  if (llvm::StringInit *CI = dyn_cast<llvm::StringInit>(code->getValue()))
+    return CI->getValue();
   if (isa<llvm::UnsetInit>(code->getValue()))
     return llvm::Optional<StringRef>();
 
   llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
-    "', field `mnemonic' does not have a string initializer!");
+    "', field `printer' does not have a code initializer!");
 }
 llvm::Optional<StringRef> TypeDef::getPrinterCode() const{
   auto code = def->getValue("printer");
@@ -63,14 +69,7 @@ llvm::Optional<StringRef> TypeDef::getPrinterCode() const{
     "', field `printer' does not have a code initializer!");
 }
 llvm::Optional<StringRef> TypeDef::getParserCode() const{
-  auto code = def->getValue("parser");
-  if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
-    return CI->getValue();
-  if (isa<llvm::UnsetInit>(code->getValue()))
-    return llvm::Optional<StringRef>();
-
-  llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
-    "', field `parser' does not have a code initializer!");
+  return def->getValueAsString("parser");
 }
 bool TypeDef::genAccessors() const{
   return def->getValueAsBit("genAccessors");
