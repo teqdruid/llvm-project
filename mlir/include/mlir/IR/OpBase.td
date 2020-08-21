@@ -2337,11 +2337,11 @@ class TypeDef<Dialect dialect, string name> {
   // type.
   string mnemonic = ?;
 
-  // If null, generate print/parser methods only if 'mnemonic' is specified
-  // If an empty code block, generate just the declarations.
+  // If null, generate just the declarations.
+  // If an empty code block, generate print/parser methods only if 'mnemonic' is specified
   // If a non-empty code block, just use that code as the definition code.
-  code printer = ?;
-  code parser = ?;
+  code printer = [{}];
+  code parser = [{}];
 
   // If set, generate accessors for each TypeMember
   bit genAccessors = 1;

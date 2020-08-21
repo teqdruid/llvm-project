@@ -37,11 +37,11 @@ def CompoundTypeA : TestType<"CompoundA"> {
 // Base class for standard types
 class StdType<string name> : TypeDef<StandardOps_Dialect, name> { }
 
-def IndexType : StdType<"IndexType"> {
+def IndexType : StdType<"Index"> {
     // let mnemonic = "index";
 }
 
-def IntegerType : StdType<"IntegerType"> {
+def IntegerType : StdType<"Integer"> {
     let parser = [{}];
     let printer = [{}];
     let mnemonic = "int";
@@ -73,7 +73,7 @@ def IntegerType : StdType<"IntegerType"> {
     }];
 }
 
-def TupleType : StdType<"TupleType"> {
+def TupleType : StdType<"Tuple"> {
     let mnemonic = "tuple";
     let members = (
         ins
@@ -81,6 +81,7 @@ def TupleType : StdType<"TupleType"> {
         ArrayRefMember<"Type">:$types,
         SelfAllocationMember<"ComplexCppClass">:$bizarreField
     );
+    let printer = ?;
 
     let extraDecls = [{
   /// Accumulate the types contained in this tuple and tuples nested within it.

@@ -18,6 +18,7 @@
 #include "mlir/TableGen/OpTrait.h"
 #include "mlir/TableGen/Operator.h"
 #include "mlir/TableGen/TypeDef.h"
+#include "mlir/TableGen/ParserHelpers.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
@@ -27,7 +28,7 @@
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
-#define DEBUG_TYPE "mlir-tblgen-opdefgen"
+#define DEBUG_TYPE "mlir-tblgen-typedefgen"
 
 using namespace mlir;
 using namespace mlir::tblgen;
@@ -53,7 +54,7 @@ static bool findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
     if (defs.empty())
       return false;
     
-    llvm::SmallSet<Dialect, 4> dialects;
+    llvm::SmallSet<mlir::tblgen::Dialect, 4> dialects;
     for (auto typeDef: defs) {
       dialects.insert(typeDef.getDialect());
     }
@@ -268,7 +269,6 @@ static const char *const typeDefStorageClassConstructor = R"(
       }
 )";
 
-/// Create a list of member names for function calls
 static std::string constructMembersInitializers(TypeDef& typeDef) {
   SmallVector<std::string, 4> members;
   typeDef.getMembersAs<std::string>(members, [](auto member) {
@@ -317,34 +317,108 @@ static bool emitStorageClass(TypeDef typeDef,
   return false;
 }
 
+// Emit code which prints the type to printer
+static bool emitPrinterAutogen(TypeDef typeDef, raw_ostream& os) {
+  if (auto mnemonic = typeDef.getMnemonic()) {
+    os << "  printer << \"" << *mnemonic << "\";\n";
+    SmallVector<TypeMember, 4> members;
+    typeDef.getMembers(members);
+    if (members.size() > 0) {
+      os << "  printer << \"<\";\n";
+      for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
+        os << "  printer << getImpl()->" << memberIter->getName() << ";\n";
+        if (memberIter < members.end() - 1) {
+          os << "  printer << \", \";\n";
+        }
+      }
+      os << "  printer << \">\";\n";
+    }
+  }
+  return false;
+}
+
+static bool emitParserAutogen(TypeDef typeDef, raw_ostream& os) {
+  SmallVector<TypeMember, 4> members;
+  typeDef.getMembers(members);
+  if (members.size() > 0) {
+    os << "  if (parser.parseLess()) return Type();\n";
+    for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
+      os << "  " << memberIter->getCppType() << " " << memberIter->getName() << ";\n";
+      os << "  if (::mlir::tblgen::parser_helpers::parse<" << memberIter->getCppType() << ">::go(ctxt, parser, " << memberIter->getName() << "))\n";
+      os << "    return Type();\n";
+      if (memberIter < members.end() - 1) {
+        os << "  if (parser.parseComma()) return Type();\n";
+      }
+    }
+    os << "  if (parser.parseGreater()) return Type();\n";
+    auto memberNames = llvm::map_range(members, [](TypeMember member) { return member.getName(); });
+    os << "  return get(ctxt, " << llvm::join(memberNames, ", ") << ");\n";
+  }
+  return false;
+}
+
+// Print all the typedef-specific definition code
 static bool emitTypeDefDef(TypeDef typeDef,
                            raw_ostream& os) {
 
   if (typeDef.genStorageClass() && typeDef.getNumMembers() > 0)
     if (emitStorageClass(typeDef, os))
       return true;
+
+  if (typeDef.genAccessors()) {
+    SmallVector<TypeMember, 4> members;
+    typeDef.getMembers(members);
+
+    for (auto member : members) {
+      SmallString<16> name = member.getName();
+      name[0] = llvm::toUpper(name[0]);
+      os << llvm::formatv("{0} {3}::get{1}() { return getImpl()->{2}; }\n",
+        member.getCppType(), name, member.getName(), typeDef.getCppClassName());
+    }
+  }
+
+  auto printerCode = typeDef.getPrinterCode();
+  if (printerCode) {
+    if (typeDef.getMnemonic() || *printerCode == "") {
+      os << "void " << typeDef.getCppClassName() << "::print(mlir::DialectAsmPrinter& printer) const {\n";
+      if (*printerCode == "") emitPrinterAutogen(typeDef, os);
+      else os << *printerCode;
+      os << "}\n";
+    }
+  }
+
+  auto parserCode = typeDef.getParserCode();
+  if (parserCode) {
+    os << "Type " << typeDef.getCppClassName() << "::parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser) {\n";
+    if (*parserCode == "") emitParserAutogen(typeDef, os);
+    else os << *parserCode;
+    os << "}\n";
+  }
+
   return false;
 }
 
+// Emit the dialect printer/parser dispatch. Client code should call these
+// functions from their dialect's print/parse methods.
 static bool emitParsePrintDispatch(SmallVectorImpl<TypeDef>& typeDefs,
                             raw_ostream& os) {
-  os << "  Type generatedTypeParser(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser, llvm::StringRef mnemonic) {\n";
+  os << "Type generatedTypeParser(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser, llvm::StringRef mnemonic) {\n";
   for (auto typeDef : typeDefs) {
     if (typeDef.getMnemonic())
-      os << llvm::formatv("    if (mnemonic == {0}::getMnemonic()) return {0}::parse(ctxt, parser);\n", typeDef.getCppClassName());
+      os << llvm::formatv("  if (mnemonic == {0}::getMnemonic()) return {0}::parse(ctxt, parser);\n", typeDef.getCppClassName());
   }
-  os << "    return Type();\n";
-  os << "  }\n\n";
+  os << "  return Type();\n";
+  os << "}\n\n";
 
-  os << "  bool generatedTypePrinter(Type type, mlir::DialectAsmPrinter& printer) {\n"
-     << "    bool notfound = false;\n"
-     << "    TypeSwitch<Type>(type)\n";
+  os << "bool generatedTypePrinter(Type type, mlir::DialectAsmPrinter& printer) {\n"
+     << "  bool notfound = false;\n"
+     << "  TypeSwitch<Type>(type)\n";
   for (auto typeDef : typeDefs) {
-      os << llvm::formatv("      .Case<{0}>([&](Type t) {{ t.dyn_cast<{0}>().print(printer); })\n", typeDef.getCppClassName());
+      os << llvm::formatv("    .Case<{0}>([&](Type t) {{ t.dyn_cast<{0}>().print(printer); })\n", typeDef.getCppClassName());
   }
-  os << "      .Default([&notfound](Type) { notfound = true; });\n"
-     << "    return notfound;\n"
-     << "  }\n\n";
+  os << "    .Default([&notfound](Type) { notfound = true; });\n"
+     << "  return notfound;\n"
+     << "}\n\n";
   return false;
 }
 
