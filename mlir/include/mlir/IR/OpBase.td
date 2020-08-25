@@ -2364,13 +2364,13 @@ class TypeMember<string type> {
 }
 
 // For standard ArrayRefs, which require allocation
-class ArrayRefMember<string type> : TypeMember<type> {
-  let allocator = [{$allocator.copyInto($self)}];
+class ArrayRefMember<string arrayOf> : TypeMember<"ArrayRef<" # arrayOf # ">"> {
+  let allocator = [{$_dst = $_allocator.copyInto($_self);}];
 }
 
 // For classes which require allocation and have their own allocateInto method
 class SelfAllocationMember<string type> : TypeMember<type> {
-  let allocator = [{$self.allocateInto($allocator)}];
+  let allocator = [{$_dst = $_self.allocateInto($_allocator);}];
 }
 
 #endif // OP_BASE

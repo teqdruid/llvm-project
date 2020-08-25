@@ -18,7 +18,7 @@
 #include "mlir/TableGen/OpTrait.h"
 #include "mlir/TableGen/Operator.h"
 #include "mlir/TableGen/TypeDef.h"
-#include "mlir/TableGen/ParserHelpers.h"
+#include "mlir/TableGen/ParserPrinterHelpers.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
@@ -258,13 +258,17 @@ namespace {0} {{
 /// The storage class' constructor template
 /// {0}: storage class name
 /// {1}: list of members
-/// {2}: custom allocation code
-static const char *const typeDefStorageClassConstructor = R"(
+static const char *const typeDefStorageClassConstructorBegin = R"(
       /// Define a construction method for creating a new instance of this storage.
       static {0} *construct(TypeStorageAllocator &allocator,
                                           const KeyTy &key) {
           auto [{1}] = key;
-          {2}
+)";
+
+/// The storage class' constructor return template
+/// {0}: storage class name
+/// {1}: list of members
+static const char *const typeDefStorageClassConstructorReturn = R"(
           return new (allocator.allocate<{0}>())
               {0}({1});
       }
@@ -277,14 +281,30 @@ static std::string constructMembersInitializers(TypeDef& typeDef) {
   return llvm::join(members, ", ");
 }
 
-static std::string constructCustomAllocationCode(TypeDef& typeDef) {
-  return "";
+static bool emitCustomAllocationCode(TypeDef& typeDef, raw_ostream& os) {
+  SmallVector<TypeMember, 4> members;
+  typeDef.getMembers(members);
+  auto fmtCtxt = FmtContext()
+    .addSubst("_allocator", "allocator");
+  for (auto member : members) {
+    auto allocCode = member.getAllocator();
+    if (allocCode) {
+      fmtCtxt.withSelf(member.getName());
+      fmtCtxt.addSubst("_dst", member.getName());
+      auto fmtObj = tgfmt(*allocCode, &fmtCtxt);
+      os << "          ";
+      fmtObj.format(os);
+      os << "\n";
+    }
+  }
+  return false;
 }
 
 static bool emitStorageClass(TypeDef typeDef,
                             raw_ostream& os) {
   SmallVector<TypeMember, 4> members;
   typeDef.getMembers(members);
+
   auto memberNames = llvm::map_range(members, [](TypeMember member) { return member.getName(); });
   auto memberTypes = llvm::map_range(members, [](TypeMember member) { return member.getCppType(); });
 
@@ -299,24 +319,29 @@ static bool emitStorageClass(TypeDef typeDef,
             memberInits,
             memberList,
             memberTypeList);
-  os << "    return llvm::hash_combine(\n";
+  os << "        return llvm::hash_combine(\n";
   for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
-    os << llvm::formatv("      llvm::hash_value({0})", memberIter->getName());
+    // os << llvm::formatv("          llvm::hash_value({0})", memberIter->getName());
+    os << "          " << memberIter->getName();
     if (memberIter < members.end() - 1) {
       os << ",\n";
     }
   }
   os << ");\n";
-  os << "  }\n";
+  os << "      }\n";
 
   if (typeDef.hasStorageCustomConstructor())
     os << "static " << typeDef.getStorageClassName() << " *construct(TypeStorageAllocator &allocator, const KeyTy &key);\n";
-  else
-    os << llvm::formatv(typeDefStorageClassConstructor,
+  else {
+    os << llvm::formatv(typeDefStorageClassConstructorBegin,
             typeDef.getStorageClassName(),
-            memberList,
-            constructCustomAllocationCode(typeDef));
-
+            memberList);
+    if (emitCustomAllocationCode(typeDef, os))
+      return false;
+    os << llvm::formatv(typeDefStorageClassConstructorReturn,
+            typeDef.getStorageClassName(),
+            memberList);
+  }
 
   for (auto member : members) {
     os << "      " << member.getCppType() << " " << member.getName() << ";\n";
@@ -336,7 +361,8 @@ static bool emitPrinterAutogen(TypeDef typeDef, raw_ostream& os) {
     if (members.size() > 0) {
       os << "  printer << \"<\";\n";
       for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
-        os << "  printer << getImpl()->" << memberIter->getName() << ";\n";
+        os << "  ::mlir::tblgen::parser_helpers::print<" << memberIter->getCppType()
+           << ">::go(printer, getImpl()->" << memberIter->getName() << ");\n";
         if (memberIter < members.end() - 1) {
           os << "  printer << \", \";\n";
         }
@@ -351,10 +377,11 @@ static bool emitParserAutogen(TypeDef typeDef, raw_ostream& os) {
   SmallVector<TypeMember, 4> members;
   typeDef.getMembers(members);
   if (members.size() > 0) {
+    os << "  llvm::BumpPtrAllocator allocator;\n";
     os << "  if (parser.parseLess()) return Type();\n";
     for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
       os << "  " << memberIter->getCppType() << " " << memberIter->getName() << ";\n";
-      os << "  if (::mlir::tblgen::parser_helpers::parse<" << memberIter->getCppType() << ">::go(ctxt, parser, " << memberIter->getName() << "))\n";
+      os << "  if (::mlir::tblgen::parser_helpers::parse<" << memberIter->getCppType() << ">::go(ctxt, parser, allocator, " << memberIter->getName() << "))\n";
       os << "    return Type();\n";
       if (memberIter < members.end() - 1) {
         os << "  if (parser.parseComma()) return Type();\n";
@@ -394,17 +421,15 @@ static bool emitTypeDefDef(TypeDef typeDef,
 
 
   auto printerCode = typeDef.getPrinterCode();
-  if (printerCode) {
-    if (typeDef.getMnemonic() || *printerCode == "") {
-      os << "void " << typeDef.getCppClassName() << "::print(mlir::DialectAsmPrinter& printer) const {\n";
-      if (*printerCode == "") emitPrinterAutogen(typeDef, os);
-      else os << *printerCode;
-      os << "}\n";
-    }
+  if (printerCode && typeDef.getMnemonic()) {
+    os << "void " << typeDef.getCppClassName() << "::print(mlir::DialectAsmPrinter& printer) const {\n";
+    if (*printerCode == "") emitPrinterAutogen(typeDef, os);
+    else os << *printerCode;
+    os << "}\n";
   }
 
   auto parserCode = typeDef.getParserCode();
-  if (parserCode) {
+  if (parserCode && typeDef.getMnemonic()) {
     os << "Type " << typeDef.getCppClassName() << "::parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser) {\n";
     if (*parserCode == "") emitParserAutogen(typeDef, os);
     else os << *parserCode;
@@ -430,6 +455,7 @@ static bool emitParsePrintDispatch(SmallVectorImpl<TypeDef>& typeDefs,
      << "  bool notfound = false;\n"
      << "  TypeSwitch<Type>(type)\n";
   for (auto typeDef : typeDefs) {
+    if (typeDef.getMnemonic())
       os << llvm::formatv("    .Case<{0}>([&](Type t) {{ t.dyn_cast<{0}>().print(printer); })\n", typeDef.getCppClassName());
   }
   os << "    .Default([&notfound](Type) { notfound = true; });\n"

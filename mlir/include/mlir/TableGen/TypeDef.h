@@ -108,7 +108,7 @@ public:
   explicit TypeMember(const llvm::DagInit *def, unsigned num) : def(def), num(num) {}
 
   StringRef getName() const;
-  StringRef getAllocator() const;
+  llvm::Optional<StringRef> getAllocator() const;
   StringRef getCppType() const;
 
 private:

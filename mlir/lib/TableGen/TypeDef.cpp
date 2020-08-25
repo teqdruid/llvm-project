@@ -95,8 +95,23 @@ bool TypeDef::operator<(const TypeDef &other) const {
 StringRef TypeMember::getName() const {
   return def->getArgName(num)->getValue();
 }
-StringRef TypeMember::getAllocator() const {
+llvm::Optional<StringRef> TypeMember::getAllocator() const {
+  auto memberType = def->getArg(num);
+  if (auto stringType = dyn_cast<llvm::StringInit>(memberType)) {
+    return llvm::Optional<StringRef>();
+  } else if (auto typeMember = dyn_cast<llvm::DefInit>(memberType)) {
+    auto code = typeMember->getDef()->getValue("allocator");
+    if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
+      return CI->getValue();
+    if (isa<llvm::UnsetInit>(code->getValue()))
+      return llvm::Optional<StringRef>();
 
+    llvm::PrintFatalError(typeMember->getDef()->getLoc(), "Record `" + def->getArgName(num)->getValue() + 
+      "', field `printer' does not have a code initializer!");
+  } else {
+    llvm::errs() << "Members DAG arguments must be either strings or defs which inherit from TypeMember\n";
+    return StringRef();
+  }
 }
 StringRef TypeMember::getCppType() const {
   auto memberType = def->getArg(num);
