@@ -26,7 +26,12 @@ namespace parser_helpers {
   using remove_constref = typename std::remove_const< typename std::remove_reference<T>::type >::type;
 
   template <typename T, typename TestType>
-  using enable_if_type = typename std::enable_if<std::is_convertible<remove_constref<T>, TestType>::value>::type;
+  using enable_if_type = typename std::enable_if<std::is_same<remove_constref<T>, TestType>::value>::type;
+
+  template <typename T, typename TestType>
+  using is_not_type = std::is_same<
+                        typename std::is_same<remove_constref<T>, TestType>::type,
+                        typename std::false_type::type>;
 
   template<typename T>
   using get_indexable_type = remove_constref< decltype(std::declval<T>()[0]) >;
@@ -43,11 +48,25 @@ namespace parser_helpers {
 
   // Int specialization
   template <typename T>
-  using enable_if_integral_type = typename std::enable_if<std::is_integral<T>::value>::type;
+  using enable_if_integral_type = typename std::enable_if<
+                                    std::is_integral<T>::value &&
+                                    is_not_type<T, bool>::value >::type;
   template<typename T>
   struct parse<T, enable_if_integral_type<T>> {
     static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, T& result) {
       return parser.parseInteger(result);
+    }
+  };
+
+  template<typename T>
+  struct parse<T, enable_if_type<T, bool>> {
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, bool& result) {
+      StringRef boolStr;
+      if (parser.parseKeyword(&boolStr)) return mlir::failure();
+      if (boolStr.compare_lower("false")) { result = false; return mlir::success(); }
+      if (boolStr.compare_lower("true")) { result = true; return mlir::success(); }
+      llvm::errs() << "Parser expected true/false, not '" << boolStr << "'\n";
+      return mlir::failure();
     }
   };
 
@@ -113,12 +132,20 @@ namespace parser_helpers {
   using enable_if_trivial = typename std::enable_if<
                           std::is_convertible<T, mlir::Type>::value ||
                           std::is_convertible<T, llvm::StringRef>::value ||
-                          std::is_integral<T>::value ||
+                          ( std::is_integral<T>::value && is_not_type<T, bool>::value ) ||
                           std::is_floating_point<T>::value>::type;
   template<typename T>
   struct print<T, enable_if_trivial< remove_constref<T> >> {
     static void go(DialectAsmPrinter& printer, const T& obj) {
       printer << obj;
+    }
+  };
+
+  template<typename T>
+  struct print<T, enable_if_type<T, bool>> {
+    static void go(DialectAsmPrinter& printer, const bool& obj) {
+      if (obj) printer << "true";
+      else     printer << "false";
     }
   };
 

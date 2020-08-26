@@ -424,7 +424,7 @@ static bool emitTypeDefDef(TypeDef typeDef,
   if (printerCode && typeDef.getMnemonic()) {
     os << "void " << typeDef.getCppClassName() << "::print(mlir::DialectAsmPrinter& printer) const {\n";
     if (*printerCode == "") emitPrinterAutogen(typeDef, os);
-    else os << *printerCode;
+    else os << *printerCode << "\n";
     os << "}\n";
   }
 
@@ -432,7 +432,7 @@ static bool emitTypeDefDef(TypeDef typeDef,
   if (parserCode && typeDef.getMnemonic()) {
     os << "Type " << typeDef.getCppClassName() << "::parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser) {\n";
     if (*parserCode == "") emitParserAutogen(typeDef, os);
-    else os << *parserCode;
+    else os << *parserCode << "\n";
     os << "}\n";
   }
 
