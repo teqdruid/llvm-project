@@ -86,7 +86,7 @@ static std::string constructMemberParameters(TypeDef& typeDef, bool prependComma
     members.push_back("");
   typeDef.getMembersAs<std::string>(members, [](auto member) {
     return (member.getCppType() + " " + member.getName()).str(); });
-  if (members.size() > 1)
+  if (members.size() > 0)
     return llvm::join(members, ", ");
   return "";
 }

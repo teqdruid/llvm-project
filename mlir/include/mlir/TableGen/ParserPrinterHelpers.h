@@ -63,8 +63,8 @@ namespace parser_helpers {
     static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, bool& result) {
       StringRef boolStr;
       if (parser.parseKeyword(&boolStr)) return mlir::failure();
-      if (boolStr.compare_lower("false")) { result = false; return mlir::success(); }
-      if (boolStr.compare_lower("true")) { result = true; return mlir::success(); }
+      if (!boolStr.compare_lower("false")) { result = false; return mlir::success(); }
+      if (!boolStr.compare_lower("true")) { result = true; return mlir::success(); }
       llvm::errs() << "Parser expected true/false, not '" << boolStr << "'\n";
       return mlir::failure();
     }

@@ -41,6 +41,13 @@ def IndexType : StdType<"Index"> {
     // let mnemonic = "index";
 }
 
+def SingleMemberType : StdType<"SingleMember"> {
+  let members = (
+    ins
+    "int": $num
+  );
+}
+
 def IntegerType : StdType<"Integer"> {
     let parser = [{}];
     let printer = [{}];

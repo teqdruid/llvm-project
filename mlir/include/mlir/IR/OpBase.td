@@ -2363,6 +2363,11 @@ class TypeMember<string type> {
   string cppType = type;
 }
 
+// For StringRefs, which require allocation
+class StringRefMember : TypeMember<"StringRef"> {
+  let allocator = [{$_dst = $_allocator.copyInto($_self);}];
+}
+
 // For standard ArrayRefs, which require allocation
 class ArrayRefMember<string arrayOf> : TypeMember<"ArrayRef<" # arrayOf # ">"> {
   let allocator = [{$_dst = $_allocator.copyInto($_self);}];
@@ -2372,5 +2377,17 @@ class ArrayRefMember<string arrayOf> : TypeMember<"ArrayRef<" # arrayOf # ">"> {
 class SelfAllocationMember<string type> : TypeMember<type> {
   let allocator = [{$_dst = $_self.allocateInto($_allocator);}];
 }
+
+// For ArrayRefs which contain things which allocate themselves
+class ArrayRefOfSelfAllocationMember<string arrayOf> : TypeMember<"ArrayRef<" # arrayOf # ">"> {
+  let allocator = [{
+    SmallVector<}] # arrayOf # [{, 4> tmpFields($_self.size());
+    for (size_t i=0; i<$_self.size(); i++) {
+      tmpFields[i] = $_self[i].allocateInto($_allocator);
+    }
+    $_dst = $_allocator.copyInto(ArrayRef<}] # arrayOf # [{>(tmpFields));
+    }];
+}
+
 
 #endif // OP_BASE
