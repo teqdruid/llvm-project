@@ -991,8 +991,6 @@ void SIInstrInfo::insertVectorSelect(MachineBasicBlock &MBB,
                                      Register TrueReg,
                                      Register FalseReg) const {
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
-  MachineFunction *MF = MBB.getParent();
-  const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
   const TargetRegisterClass *BoolXExecRC =
     RI.getRegClass(AMDGPU::SReg_1_XEXECRegClassID);
   assert(MRI.getRegClass(DstReg) == &AMDGPU::VGPR_32RegClass &&
@@ -1496,7 +1494,6 @@ unsigned SIInstrInfo::calculateLDSSpillAddress(
     unsigned FrameOffset, unsigned Size) const {
   MachineFunction *MF = MBB.getParent();
   SIMachineFunctionInfo *MFI = MF->getInfo<SIMachineFunctionInfo>();
-  const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
   const DebugLoc &DL = MBB.findDebugLoc(MI);
   unsigned WorkGroupSize = MFI->getMaxFlatWorkGroupSize();
   unsigned WavefrontSize = ST.getWavefrontSize();
@@ -2131,7 +2128,7 @@ unsigned SIInstrInfo::insertIndirectBranch(MachineBasicBlock &MBB,
   //   buzz;
 
   RS->enterBasicBlockEnd(MBB);
-  unsigned Scav = RS->scavengeRegisterBackwards(
+  Register Scav = RS->scavengeRegisterBackwards(
     AMDGPU::SReg_64RegClass,
     MachineBasicBlock::iterator(GetPC), false, 0);
   MRI.replaceRegWith(PCReg, Scav);
@@ -3312,9 +3309,6 @@ bool SIInstrInfo::isImmOperandLegal(const MachineInstr &MI, unsigned OpNo,
   if (OpInfo.RegClass < 0)
     return false;
 
-  const MachineFunction *MF = MI.getParent()->getParent();
-  const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
-
   if (MO.isImm() && isInlineConstant(MO, OpInfo)) {
     if (isMAI(MI) && ST.hasMFMAInlineLiteralBug() &&
         OpNo ==(unsigned)AMDGPU::getNamedOperandIdx(MI.getOpcode(),
@@ -3849,7 +3843,6 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr &MI,
         }
       }
     }
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
     // v_writelane_b32 is an exception from constant bus restriction:
     // vsrc0 can be sgpr, const or m0 and lane select sgpr, m0 or inline-const
     if (ConstantBusCount > ST.getConstantBusLimit(Opcode) &&
@@ -4017,7 +4010,7 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr &MI,
     }
   }
 
-  if (isFLAT(MI) && !MF->getSubtarget<GCNSubtarget>().hasFlatInstOffsets()) {
+  if (isFLAT(MI) && !ST.hasFlatInstOffsets()) {
     const MachineOperand *Offset = getNamedOperand(MI, AMDGPU::OpName::offset);
     if (Offset->getImm() != 0) {
       ErrInfo = "subtarget does not support offsets in flat instructions";
@@ -4236,11 +4229,9 @@ void SIInstrInfo::legalizeOpWithMove(MachineInstr &MI, unsigned OpIdx) const {
   MachineBasicBlock *MBB = MI.getParent();
   MachineOperand &MO = MI.getOperand(OpIdx);
   MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
-  const SIRegisterInfo *TRI =
-      static_cast<const SIRegisterInfo*>(MRI.getTargetRegisterInfo());
   unsigned RCID = get(MI.getOpcode()).OpInfo[OpIdx].RegClass;
   const TargetRegisterClass *RC = RI.getRegClass(RCID);
-  unsigned Size = TRI->getRegSizeInBits(*RC);
+  unsigned Size = RI.getRegSizeInBits(*RC);
   unsigned Opcode = (Size == 64) ? AMDGPU::V_MOV_B64_PSEUDO : AMDGPU::V_MOV_B32_e32;
   if (MO.isReg())
     Opcode = AMDGPU::COPY;
@@ -4361,7 +4352,6 @@ bool SIInstrInfo::isOperandLegal(const MachineInstr &MI, unsigned OpIdx,
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   const MCInstrDesc &InstDesc = MI.getDesc();
   const MCOperandInfo &OpInfo = InstDesc.OpInfo[OpIdx];
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
   const TargetRegisterClass *DefinedRC =
       OpInfo.RegClass != -1 ? RI.getRegClass(OpInfo.RegClass) : nullptr;
   if (!MO)
@@ -4564,7 +4554,7 @@ void SIInstrInfo::legalizeOperandsVOP3(MachineRegisterInfo &MRI,
   int ConstantBusLimit = ST.getConstantBusLimit(Opc);
   int LiteralLimit = ST.hasVOP3Literal() ? 1 : 0;
   SmallDenseSet<unsigned> SGPRsUsed;
-  unsigned SGPRReg = findUsedSGPR(MI, VOP3Idx);
+  Register SGPRReg = findUsedSGPR(MI, VOP3Idx);
   if (SGPRReg != AMDGPU::NoRegister) {
     SGPRsUsed.insert(SGPRReg);
     --ConstantBusLimit;
@@ -4668,12 +4658,12 @@ void SIInstrInfo::legalizeOperandsSMRD(MachineRegisterInfo &MRI,
   // pointer value is uniform.
   MachineOperand *SBase = getNamedOperand(MI, AMDGPU::OpName::sbase);
   if (SBase && !RI.isSGPRClass(MRI.getRegClass(SBase->getReg()))) {
-    unsigned SGPR = readlaneVGPRToSGPR(SBase->getReg(), MI, MRI);
+    Register SGPR = readlaneVGPRToSGPR(SBase->getReg(), MI, MRI);
     SBase->setReg(SGPR);
   }
   MachineOperand *SOff = getNamedOperand(MI, AMDGPU::OpName::soff);
   if (SOff && !RI.isSGPRClass(MRI.getRegClass(SOff->getReg()))) {
-    unsigned SGPR = readlaneVGPRToSGPR(SOff->getReg(), MI, MRI);
+    Register SGPR = readlaneVGPRToSGPR(SOff->getReg(), MI, MRI);
     SOff->setReg(SGPR);
   }
 }
@@ -5181,8 +5171,7 @@ void SIInstrInfo::legalizeOperands(MachineInstr &MI,
     } else if (!VAddr && ST.hasAddr64()) {
       // This instructions is the _OFFSET variant, so we need to convert it to
       // ADDR64.
-      assert(MBB.getParent()->getSubtarget<GCNSubtarget>().getGeneration()
-             < AMDGPUSubtarget::VOLCANIC_ISLANDS &&
+      assert(ST.getGeneration() < AMDGPUSubtarget::VOLCANIC_ISLANDS &&
              "FIXME: Need to emit flat atomics here");
 
       unsigned RsrcPtr, NewSRsrc;
@@ -6317,7 +6306,7 @@ void SIInstrInfo::addSCCDefUsersToVALUWorklist(MachineOperand &Op,
     if (MI.findRegisterUseOperandIdx(AMDGPU::SCC, false, &RI) != -1) {
       if (MI.isCopy()) {
         MachineRegisterInfo &MRI = MI.getParent()->getParent()->getRegInfo();
-        unsigned DestReg = MI.getOperand(0).getReg();
+        Register DestReg = MI.getOperand(0).getReg();
 
         for (auto &User : MRI.use_nodbg_instructions(DestReg)) {
           if ((User.getOpcode() == AMDGPU::S_ADD_CO_PSEUDO) ||
@@ -6663,8 +6652,7 @@ unsigned SIInstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
   case TargetOpcode::INLINEASM_BR: {
     const MachineFunction *MF = MI.getParent()->getParent();
     const char *AsmStr = MI.getOperand(0).getSymbolName();
-    return getInlineAsmLength(AsmStr, *MF->getTarget().getMCAsmInfo(),
-                              &MF->getSubtarget());
+    return getInlineAsmLength(AsmStr, *MF->getTarget().getMCAsmInfo(), &ST);
   }
   default:
     return DescSize;
@@ -6871,10 +6859,6 @@ const MCInstrDesc &SIInstrInfo::getKillTerminatorFromPseudo(unsigned Opcode) con
 }
 
 void SIInstrInfo::fixImplicitOperands(MachineInstr &MI) const {
-  MachineBasicBlock *MBB = MI.getParent();
-  MachineFunction *MF = MBB->getParent();
-  const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
-
   if (!ST.isWave32())
     return;
 

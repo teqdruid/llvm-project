@@ -1396,14 +1396,44 @@ bool SITargetLowering::allowsMisalignedMemoryAccessesImpl(
 
   if (AddrSpace == AMDGPUAS::LOCAL_ADDRESS ||
       AddrSpace == AMDGPUAS::REGION_ADDRESS) {
-    // ds_read/write_b64 require 8-byte alignment, but we can do a 4 byte
-    // aligned, 8 byte access in a single operation using ds_read2/write2_b32
-    // with adjacent offsets.
-    bool AlignedBy4 = Alignment >= Align(4);
-    if (IsFast)
-      *IsFast = AlignedBy4;
+    // Check if alignment requirements for ds_read/write instructions are
+    // disabled.
+    if (Subtarget->hasUnalignedDSAccessEnabled()) {
+      if (IsFast)
+        *IsFast = true;
+      return true;
+    }
 
-    return AlignedBy4;
+    if (Size == 64) {
+      // ds_read/write_b64 require 8-byte alignment, but we can do a 4 byte
+      // aligned, 8 byte access in a single operation using ds_read2/write2_b32
+      // with adjacent offsets.
+      bool AlignedBy4 = Alignment >= Align(4);
+      if (IsFast)
+        *IsFast = AlignedBy4;
+
+      return AlignedBy4;
+    }
+    if (Size == 96) {
+      // ds_read/write_b96 require 16-byte alignment on gfx8 and older.
+      bool Aligned =
+          Alignment >= Align(Subtarget->hasUnalignedDSAccess() ? 4 : 16);
+      if (IsFast)
+        *IsFast = Aligned;
+
+      return Aligned;
+    }
+    if (Size == 128) {
+      // ds_read/write_b128 require 16-byte alignment on gfx8 and older, but we
+      // can do a 8 byte aligned, 16 byte access in a single operation using
+      // ds_read2/write2_b64.
+      bool Aligned =
+          Alignment >= Align(Subtarget->hasUnalignedDSAccess() ? 4 : 8);
+      if (IsFast)
+        *IsFast = Aligned;
+
+      return Aligned;
+    }
   }
 
   // FIXME: We have to be conservative here and assume that flat operations
@@ -1419,7 +1449,9 @@ bool SITargetLowering::allowsMisalignedMemoryAccessesImpl(
     return AlignedBy4;
   }
 
-  if (Subtarget->hasUnalignedBufferAccess()) {
+  if (Subtarget->hasUnalignedBufferAccessEnabled() &&
+      !(AddrSpace == AMDGPUAS::LOCAL_ADDRESS ||
+        AddrSpace == AMDGPUAS::REGION_ADDRESS)) {
     // If we have an uniform constant load, it still requires using a slow
     // buffer instruction if unaligned.
     if (IsFast) {
@@ -1926,26 +1958,26 @@ void SITargetLowering::allocateHSAUserSGPRs(CCState &CCInfo,
                                             const SIRegisterInfo &TRI,
                                             SIMachineFunctionInfo &Info) const {
   if (Info.hasImplicitBufferPtr()) {
-    unsigned ImplicitBufferPtrReg = Info.addImplicitBufferPtr(TRI);
+    Register ImplicitBufferPtrReg = Info.addImplicitBufferPtr(TRI);
     MF.addLiveIn(ImplicitBufferPtrReg, &AMDGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(ImplicitBufferPtrReg);
   }
 
   // FIXME: How should these inputs interact with inreg / custom SGPR inputs?
   if (Info.hasPrivateSegmentBuffer()) {
-    unsigned PrivateSegmentBufferReg = Info.addPrivateSegmentBuffer(TRI);
+    Register PrivateSegmentBufferReg = Info.addPrivateSegmentBuffer(TRI);
     MF.addLiveIn(PrivateSegmentBufferReg, &AMDGPU::SGPR_128RegClass);
     CCInfo.AllocateReg(PrivateSegmentBufferReg);
   }
 
   if (Info.hasDispatchPtr()) {
-    unsigned DispatchPtrReg = Info.addDispatchPtr(TRI);
+    Register DispatchPtrReg = Info.addDispatchPtr(TRI);
     MF.addLiveIn(DispatchPtrReg, &AMDGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(DispatchPtrReg);
   }
 
   if (Info.hasQueuePtr()) {
-    unsigned QueuePtrReg = Info.addQueuePtr(TRI);
+    Register QueuePtrReg = Info.addQueuePtr(TRI);
     MF.addLiveIn(QueuePtrReg, &AMDGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(QueuePtrReg);
   }
@@ -1960,13 +1992,13 @@ void SITargetLowering::allocateHSAUserSGPRs(CCState &CCInfo,
   }
 
   if (Info.hasDispatchID()) {
-    unsigned DispatchIDReg = Info.addDispatchID(TRI);
+    Register DispatchIDReg = Info.addDispatchID(TRI);
     MF.addLiveIn(DispatchIDReg, &AMDGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(DispatchIDReg);
   }
 
   if (Info.hasFlatScratchInit()) {
-    unsigned FlatScratchInitReg = Info.addFlatScratchInit(TRI);
+    Register FlatScratchInitReg = Info.addFlatScratchInit(TRI);
     MF.addLiveIn(FlatScratchInitReg, &AMDGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(FlatScratchInitReg);
   }
@@ -1982,25 +2014,25 @@ void SITargetLowering::allocateSystemSGPRs(CCState &CCInfo,
                                            CallingConv::ID CallConv,
                                            bool IsShader) const {
   if (Info.hasWorkGroupIDX()) {
-    unsigned Reg = Info.addWorkGroupIDX();
+    Register Reg = Info.addWorkGroupIDX();
     MF.addLiveIn(Reg, &AMDGPU::SGPR_32RegClass);
     CCInfo.AllocateReg(Reg);
   }
 
   if (Info.hasWorkGroupIDY()) {
-    unsigned Reg = Info.addWorkGroupIDY();
+    Register Reg = Info.addWorkGroupIDY();
     MF.addLiveIn(Reg, &AMDGPU::SGPR_32RegClass);
     CCInfo.AllocateReg(Reg);
   }
 
   if (Info.hasWorkGroupIDZ()) {
-    unsigned Reg = Info.addWorkGroupIDZ();
+    Register Reg = Info.addWorkGroupIDZ();
     MF.addLiveIn(Reg, &AMDGPU::SGPR_32RegClass);
     CCInfo.AllocateReg(Reg);
   }
 
   if (Info.hasWorkGroupInfo()) {
-    unsigned Reg = Info.addWorkGroupInfo();
+    Register Reg = Info.addWorkGroupInfo();
     MF.addLiveIn(Reg, &AMDGPU::SGPR_32RegClass);
     CCInfo.AllocateReg(Reg);
   }
@@ -4301,6 +4333,12 @@ MVT SITargetLowering::getScalarShiftAmountTy(const DataLayout &, EVT VT) const {
   return (VT == MVT::i16) ? MVT::i16 : MVT::i32;
 }
 
+LLT SITargetLowering::getPreferredShiftAmountTy(LLT Ty) const {
+  return (Ty.getScalarSizeInBits() <= 16 && Subtarget->has16BitInsts())
+             ? Ty.changeElementSize(16)
+             : Ty.changeElementSize(32);
+}
+
 // Answering this is somewhat tricky and depends on the specific device which
 // have different rates for fma or all f64 operations.
 //
@@ -5016,7 +5054,7 @@ SDValue SITargetLowering::LowerRETURNADDR(SDValue Op,
 
   const SIRegisterInfo *TRI = getSubtarget()->getRegisterInfo();
   // Get the return address reg and mark it as an implicit live-in
-  unsigned Reg = MF.addLiveIn(TRI->getReturnAddressReg(MF), getRegClassFor(VT, Op.getNode()->isDivergent()));
+  Register Reg = MF.addLiveIn(TRI->getReturnAddressReg(MF), getRegClassFor(VT, Op.getNode()->isDivergent()));
 
   return DAG.getCopyFromReg(DAG.getEntryNode(), DL, Reg, VT);
 }
@@ -5112,7 +5150,7 @@ SDValue SITargetLowering::lowerTRAP(SDValue Op, SelectionDAG &DAG) const {
 
   MachineFunction &MF = DAG.getMachineFunction();
   SIMachineFunctionInfo *Info = MF.getInfo<SIMachineFunctionInfo>();
-  unsigned UserSGPR = Info->getQueuePtrUserSGPR();
+  Register UserSGPR = Info->getQueuePtrUserSGPR();
   assert(UserSGPR != AMDGPU::NoRegister);
   SDValue QueuePtr = CreateLiveInRegister(
     DAG, &AMDGPU::SReg_64RegClass, UserSGPR, MVT::i64);
@@ -7919,9 +7957,12 @@ SDValue SITargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
       llvm_unreachable("unsupported private_element_size");
     }
   } else if (AS == AMDGPUAS::LOCAL_ADDRESS || AS == AMDGPUAS::REGION_ADDRESS) {
-    // Use ds_read_b128 if possible.
-    if (Subtarget->useDS128() && Load->getAlignment() >= 16 &&
-        MemVT.getStoreSize() == 16)
+    // Use ds_read_b128 or ds_read_b96 when possible.
+    if (Subtarget->hasDS96AndDS128() &&
+        ((Subtarget->useDS128() && MemVT.getStoreSize() == 16) ||
+         MemVT.getStoreSize() == 12) &&
+        allowsMisalignedMemoryAccessesImpl(MemVT.getSizeInBits(), AS,
+                                           Load->getAlign()))
       return SDValue();
 
     if (NumElements > 2)
@@ -8389,9 +8430,12 @@ SDValue SITargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
       llvm_unreachable("unsupported private_element_size");
     }
   } else if (AS == AMDGPUAS::LOCAL_ADDRESS || AS == AMDGPUAS::REGION_ADDRESS) {
-    // Use ds_write_b128 if possible.
-    if (Subtarget->useDS128() && Store->getAlignment() >= 16 &&
-        VT.getStoreSize() == 16 && NumElements != 3)
+    // Use ds_write_b128 or ds_write_b96 when possible.
+    if (Subtarget->hasDS96AndDS128() &&
+        ((Subtarget->useDS128() && VT.getStoreSize() == 16) ||
+         (VT.getStoreSize() == 12)) &&
+        allowsMisalignedMemoryAccessesImpl(VT.getSizeInBits(), AS,
+                                           Store->getAlign()))
       return SDValue();
 
     if (NumElements > 2)
@@ -11349,6 +11393,42 @@ void SITargetLowering::computeKnownBitsForFrameIndex(
   // wave. We can't use vaddr in MUBUF instructions if we don't know the address
   // calculation won't overflow, so assume the sign bit is never set.
   Known.Zero.setHighBits(getSubtarget()->getKnownHighZeroBitsForFrameIndex());
+}
+
+static void knownBitsForWorkitemID(const GCNSubtarget &ST, GISelKnownBits &KB,
+                                   KnownBits &Known, unsigned Dim) {
+  unsigned MaxValue =
+      ST.getMaxWorkitemID(KB.getMachineFunction().getFunction(), Dim);
+  Known.Zero.setHighBits(countLeadingZeros(MaxValue));
+}
+
+void SITargetLowering::computeKnownBitsForTargetInstr(
+    GISelKnownBits &KB, Register R, KnownBits &Known, const APInt &DemandedElts,
+    const MachineRegisterInfo &MRI, unsigned Depth) const {
+  const MachineInstr *MI = MRI.getVRegDef(R);
+  switch (MI->getOpcode()) {
+  case AMDGPU::G_INTRINSIC: {
+    switch (MI->getIntrinsicID())
+    case Intrinsic::amdgcn_workitem_id_x:
+      knownBitsForWorkitemID(*getSubtarget(), KB, Known, 0);
+      break;
+    case Intrinsic::amdgcn_workitem_id_y:
+      knownBitsForWorkitemID(*getSubtarget(), KB, Known, 1);
+      break;
+    case Intrinsic::amdgcn_workitem_id_z:
+      knownBitsForWorkitemID(*getSubtarget(), KB, Known, 2);
+      break;
+    case Intrinsic::amdgcn_mbcnt_lo:
+    case Intrinsic::amdgcn_mbcnt_hi: {
+      // These return at most the wavefront size - 1.
+      unsigned Size = MRI.getType(R).getSizeInBits();
+      Known.Zero.setHighBits(Size - getSubtarget()->getWavefrontSizeLog2());
+      break;
+    }
+    default:
+      break;
+  }
+  }
 }
 
 Align SITargetLowering::computeKnownAlignForTargetInstr(
