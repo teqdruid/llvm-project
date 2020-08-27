@@ -18,7 +18,6 @@
 #include "mlir/TableGen/OpTrait.h"
 #include "mlir/TableGen/Operator.h"
 #include "mlir/TableGen/TypeDef.h"
-#include "mlir/TableGen/ParserPrinterHelpers.h"
 #include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
@@ -113,7 +112,7 @@ public:
 /// {2}: The storage class name
 static const char *const typeDefDeclParametricBeginStr = R"(
   namespace {1} {
-    class {2};
+    struct {2};
   }
   class {0}: public Type::TypeBase<{0}, Type,
                                         {1}::{2}> {{
@@ -251,18 +250,15 @@ namespace {0} {{
           return key == KeyTy({4});
       }
 
-      static llvm::hash_code hashKey(const KeyTy &key) {
-        auto [{4}] = key;
+      static llvm::hash_code hashKey(const KeyTy &key) {{
 )";
 
 /// The storage class' constructor template
 /// {0}: storage class name
-/// {1}: list of members
 static const char *const typeDefStorageClassConstructorBegin = R"(
       /// Define a construction method for creating a new instance of this storage.
       static {0} *construct(TypeStorageAllocator &allocator,
-                                          const KeyTy &key) {
-          auto [{1}] = key;
+                                          const KeyTy &key) {{
 )";
 
 /// The storage class' constructor return template
@@ -319,6 +315,9 @@ static bool emitStorageClass(TypeDef typeDef,
             memberInits,
             memberList,
             memberTypeList);
+  for (size_t i=0; i<members.size(); i++) {
+    os << llvm::formatv("      auto {0} = std::get<{1}>(key);\n", members[i].getName(), i);
+  }
   os << "        return llvm::hash_combine(\n";
   for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
     // os << llvm::formatv("          llvm::hash_value({0})", memberIter->getName());
@@ -331,11 +330,13 @@ static bool emitStorageClass(TypeDef typeDef,
   os << "      }\n";
 
   if (typeDef.hasStorageCustomConstructor())
-    os << "static " << typeDef.getStorageClassName() << " *construct(TypeStorageAllocator &allocator, const KeyTy &key);\n";
+    os << "  static " << typeDef.getStorageClassName() << " *construct(TypeStorageAllocator &allocator, const KeyTy &key);\n";
   else {
     os << llvm::formatv(typeDefStorageClassConstructorBegin,
-            typeDef.getStorageClassName(),
-            memberList);
+            typeDef.getStorageClassName());
+    for (size_t i=0; i<members.size(); i++) {
+      os << llvm::formatv("      auto {0} = std::get<{1}>(key);\n", members[i].getName(), i);
+    }
     if (emitCustomAllocationCode(typeDef, os))
       return false;
     os << llvm::formatv(typeDefStorageClassConstructorReturn,
@@ -390,6 +391,8 @@ static bool emitParserAutogen(TypeDef typeDef, raw_ostream& os) {
     os << "  if (parser.parseGreater()) return Type();\n";
     auto memberNames = llvm::map_range(members, [](TypeMember member) { return member.getName(); });
     os << "  return get(ctxt, " << llvm::join(memberNames, ", ") << ");\n";
+  } else {
+    os << "  return get(ctxt);\n";
   }
   return false;
 }

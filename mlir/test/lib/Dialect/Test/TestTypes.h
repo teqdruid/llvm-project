@@ -14,11 +14,19 @@
 #ifndef MLIR_TESTTYPES_H
 #define MLIR_TESTTYPES_H
 
+#include <tuple>
+
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Types.h"
+#include "mlir/IR/Dialect.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/Operation.h"
 
 namespace mlir {
 
+struct TestType;
+#define GET_TYPEDEF_CLASSES
+#include "TestTypeDefs.h.inc"
 #include "TestTypeInterfaces.h.inc"
 
 /// This class is a simple test type that uses a generated interface.
@@ -79,6 +87,7 @@ public:
   /// Name/key getter.
   StringRef getName() { return getImpl()->name; }
 };
+
 
 } // end namespace mlir
 

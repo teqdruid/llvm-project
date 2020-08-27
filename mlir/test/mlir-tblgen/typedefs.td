@@ -2,11 +2,27 @@
 
 include "mlir/IR/OpBase.td"
 
+// DECL: #ifdef GET_TYPEDEF_CLASSES
+// DECL: #undef GET_TYPEDEF_CLASSES
+
 // DECL: Type generatedTypeParser(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser, llvm::StringRef mnenomic);
 // DECL: bool generatedTypePrinter(Type type, mlir::DialectAsmPrinter& printer);
 
+// DEF: #ifdef GET_TYPEDEF_LIST
+// DEF: #undef GET_TYPEDEF_LIST
+// DEF: SimpleAType,
+// DEF: CompoundAType,
+// DEF: IndexType,
+// DEF: SingleMemberType,
+// DEF: IntegerType
+
+// DEF-LABEL: Type generatedTypeParser(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser, llvm::StringRef mnemonic)
+// DEF: if (mnemonic == CompoundAType::getMnemonic()) return CompoundAType::parse(ctxt, parser);
+// DEF return Type();
+
 def Test_Dialect: Dialect {
 // DECL-NOT: TestDialect
+// DEF-NOT: TestDialect
     let name = "TestDialect";
 }
 

@@ -12,8 +12,14 @@
 #ifndef MLIR_TABLEGEN_PARSER_HELPERS_H
 #define MLIR_TABLEGEN_PARSER_HELPERS_H
 
-#include "mlir/IR/DialectImplementation.h"
 #include <type_traits>
+#include "mlir/IR/DialectImplementation.h"
+
+namespace llvm {
+    hash_code hash_value(float f) {
+        return *(uint32_t*)&f;
+    }
+}
 
 namespace mlir {
 namespace tblgen {

@@ -141,15 +141,25 @@ void TestDialect::initialize() {
       >();
   addInterfaces<TestOpAsmInterface, TestDialectFoldInterface,
                 TestInlinerInterface>();
-  addTypes<TestType, TestRecursiveType>();
+  addTypes<
+    TestType,
+    TestRecursiveType,
+    #define GET_TYPEDEF_LIST
+    #include "TestTypeDefs.cpp.inc"
+    >();
   allowUnknownOperations();
 }
 
-static Type parseTestType(DialectAsmParser &parser,
+static Type parseTestType(MLIRContext* ctxt,
+                          DialectAsmParser &parser,
                           llvm::SetVector<Type> &stack) {
   StringRef typeTag;
   if (failed(parser.parseKeyword(&typeTag)))
     return Type();
+
+  auto genType = generatedTypeParser(ctxt, parser, typeTag);
+  if (genType != Type())
+    return genType;
 
   if (typeTag == "test_type")
     return TestType::get(parser.getBuilder().getContext());
@@ -174,7 +184,7 @@ static Type parseTestType(DialectAsmParser &parser,
   if (failed(parser.parseComma()))
     return Type();
   stack.insert(rec);
-  Type subtype = parseTestType(parser, stack);
+  Type subtype = parseTestType(ctxt, parser, stack);
   stack.pop_back();
   if (!subtype || failed(parser.parseGreater()) || failed(rec.setBody(subtype)))
     return Type();
@@ -184,7 +194,7 @@ static Type parseTestType(DialectAsmParser &parser,
 
 Type TestDialect::parseType(DialectAsmParser &parser) const {
   llvm::SetVector<Type> stack;
-  return parseTestType(parser, stack);
+  return parseTestType(getContext(), parser, stack);
 }
 
 static void printTestType(Type type, DialectAsmPrinter &printer,
