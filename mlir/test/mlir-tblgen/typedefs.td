@@ -1,54 +1,67 @@
-// RUN: mlir-tblgen -gen-op-defs -I %S/../../include %s | FileCheck %s
+// RUN: mlir-tblgen -gen-typedef-decls -I %S/../../include %s | FileCheck %s --check-prefix=DECL
 
 include "mlir/IR/OpBase.td"
-include "mlir/Dialect/StandardOps/IR/Ops.td"
 
-// ************
-// Test defs
+// DECL: Type generatedTypeParser(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser, llvm::StringRef mnenomic);
+// DECL: bool generatedTypePrinter(Type type, mlir::DialectAsmPrinter& printer);
+
 def Test_Dialect: Dialect {
+// DECL-NOT: TestDialect
     let name = "TestDialect";
 }
 
-// Base class for other typedefs. Provides dialact-specific defaults
 class TestType<string name> : TypeDef<Test_Dialect, name> { }
 
-// SimpleTypeA is a simple type. A storage class will not be generated.
-def SimpleTypeA : TestType<"SimpleA"> { }
+def A_SimpleTypeA : TestType<"SimpleA"> {
+// DECL: class SimpleAType: public Type
+// DECL: static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
+// DECL: void print(mlir::DialectAsmPrinter& printer) const;
+}
 
 // A more complex parameterized type
-def CompoundTypeA : TestType<"CompoundA"> {
-    // Override the default mnemonic
-    let mnemonic = "cmpnd_a";
+def B_CompoundTypeA : TestType<"CompoundA"> {
 
-    // What types do we contain?
+    let mnemonic = "cmpnd_a";
     let members = (
         ins
-        // A standard c++ int
         "int":$widthOfSomething,
-        // The simple type defined above
         "SimpleTypeA": $exampleTdType,
-        // Some C++ type
         "SomeCppStruct": $exampleCppType
     );
 
     let genVerifyInvariantsDecl = 1;
+
+// DECL-LABEL: class CompoundAType: public Type
+// DECL: static LogicalResult verifyConstructionInvariants(Location loc, int widthOfSomething, SimpleTypeA exampleTdType, SomeCppStruct exampleCppType);
+// DECL: static CompoundAType getChecked(Location loc, int widthOfSomething, SimpleTypeA exampleTdType, SomeCppStruct exampleCppType);
+// DECL: static StringRef getMnemonic() { return "cmpnd_a"; }
+// DECL: int getWidthOfSomething();
+// DECL: SimpleTypeA getExampleTdType();
+// DECL: SomeCppStruct getExampleCppType();
 }
 
-// Base class for standard types
-class StdType<string name> : TypeDef<StandardOps_Dialect, name> { }
+def C_IndexType : TestType<"Index"> {
+    let mnemonic = "index";
 
-def IndexType : StdType<"Index"> {
-    // let mnemonic = "index";
+// DECL-LABEL: class IndexType: public Type
+// DECL: static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
+// DECL: void print(mlir::DialectAsmPrinter& printer) const;
+// DECL: static StringRef getMnemonic() { return "index"; }
 }
 
-def SingleMemberType : StdType<"SingleMember"> {
+def D_SingleMemberType : TestType<"SingleMember"> {
   let members = (
     ins
     "int": $num
   );
+// DECL-LABEL: class SingleMemberTypeStorage;
+// DECL-LABEL: class SingleMemberType
+// DECL-NEXT:                   detail::SingleMemberTypeStorage
+// DECL: static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
+// DECL: void print(mlir::DialectAsmPrinter& printer) const;
 }
 
-def IntegerType : StdType<"Integer"> {
+def E_IntegerType : TestType<"Integer"> {
     let parser = [{}];
     let printer = [{}];
     let mnemonic = "int";
@@ -58,7 +71,9 @@ def IntegerType : StdType<"Integer"> {
         "SignednessSemantics":$signedness, 
         "unsigned":$width
     );
-    
+
+// DECL-LABEL: IntegerType: public Type
+
     let extraDecls = [{
   /// Signedness semantics.
   enum SignednessSemantics {
@@ -76,39 +91,21 @@ def IntegerType : StdType<"Integer"> {
   bool isSigned() const { return getSignedness() == Signed; }
   /// Return true if this is an unsigned integer type.
   bool isUnsigned() const { return getSignedness() == Unsigned; }
-
     }];
-}
 
-def TupleType : StdType<"Tuple"> {
-    let mnemonic = "tuple";
-    let members = (
-        ins
-        "int":$widthOfSomething,
-        ArrayRefMember<"Type">:$types,
-        SelfAllocationMember<"ComplexCppClass">:$bizarreField
-    );
-    let printer = ?;
+// DECL: /// Signedness semantics.
+// DECL-NEXT: enum SignednessSemantics {
+// DECL-NEXT:   Signless, /// No signedness semantics
+// DECL-NEXT:   Signed,   /// Signed integer
+// DECL-NEXT:   Unsigned, /// Unsigned integer
+// DECL-NEXT: };
+// DECL: /// This extra function is necessary since it doesn't include signedness
+// DECL-NEXT: static IntegerType getChecked(unsigned width, Location location);
 
-    let extraDecls = [{
-  /// Accumulate the types contained in this tuple and tuples nested within it.
-  /// Note that this only flattens nested tuples, not any other container type,
-  /// e.g. a tuple<i32, tensor<i32>, tuple<f32, tuple<i64>>> is flattened to
-  /// (i32, tensor<i32>, f32, i64)
-  void getFlattenedTypes(SmallVectorImpl<Type> &types);
-
-  /// Return the number of held types.
-  size_t size() const;
-
-  /// Iterate over the held elements.
-  using iterator = ArrayRef<Type>::iterator;
-  iterator begin() const { return getTypes().begin(); }
-  iterator end() const { return getTypes().end(); }
-
-  /// Return the element type at index 'index'.
-  Type getType(size_t index) const {
-    assert(index < size() && "invalid index for tuple type");
-    return getTypes()[index];
-  }
-    }];
+// DECL: /// Return true if this is a signless integer type.
+// DECL-NEXT: bool isSignless() const { return getSignedness() == Signless; }
+// DECL-NEXT: /// Return true if this is a signed integer type.
+// DECL-NEXT: bool isSigned() const { return getSignedness() == Signed; }
+// DECL-NEXT: /// Return true if this is an unsigned integer type.
+// DECL-NEXT: bool isUnsigned() const { return getSignedness() == Unsigned; }
 }

@@ -404,13 +404,7 @@ static bool emitTypeDefDef(TypeDef typeDef,
     if (emitStorageClass(typeDef, os))
       return true;
 
-  // auto memberNames = llvm::map_range(members, [](TypeMember member) { return member.getName(); });
-  // os << typeDef.getCppClassName() << " " << typeDef.getCppClassName() << "::get(::mlir::MLIRContext* ctxt"
-  //    << llvm::join(memberNames, ", ") << ") {\n";
-  // os << "  return Base::get"
   if (typeDef.genAccessors()) {
-
-
     for (auto member : members) {
       SmallString<16> name = member.getName();
       name[0] = llvm::toUpper(name[0]);
