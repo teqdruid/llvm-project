@@ -180,7 +180,7 @@ static void emitTypeDefDecl(TypeDef &typeDef, raw_ostream &os) {
     for (auto member : members) {
       SmallString<16> name = member.getName();
       name[0] = llvm::toUpper(name[0]);
-      os << llvm::formatv("    {0} get{1}();\n", member.getCppType(), name);
+      os << llvm::formatv("    {0} get{1}() const;\n", member.getCppType(), name);
     }
   }
 
@@ -382,7 +382,7 @@ static bool emitParserAutogen(TypeDef typeDef, raw_ostream& os) {
     os << "  if (parser.parseLess()) return Type();\n";
     for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
       os << "  " << memberIter->getCppType() << " " << memberIter->getName() << ";\n";
-      os << "  if (::mlir::tblgen::parser_helpers::parse<" << memberIter->getCppType() << ">::go(ctxt, parser, allocator, " << memberIter->getName() << "))\n";
+      os << "  if (::mlir::tblgen::parser_helpers::parse<" << memberIter->getCppType() << ">::go(ctxt, parser, allocator, \"" << memberIter->getCppType() << "\", " << memberIter->getName() << "))\n";
       os << "    return Type();\n";
       if (memberIter < members.end() - 1) {
         os << "  if (parser.parseComma()) return Type();\n";
@@ -411,7 +411,7 @@ static bool emitTypeDefDef(TypeDef typeDef,
     for (auto member : members) {
       SmallString<16> name = member.getName();
       name[0] = llvm::toUpper(name[0]);
-      os << llvm::formatv("{0} {3}::get{1}() { return getImpl()->{2}; }\n",
+      os << llvm::formatv("{0} {3}::get{1}() const { return getImpl()->{2}; }\n",
         member.getCppType(), name, member.getName(), typeDef.getCppClassName());
     }
   }

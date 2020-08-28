@@ -24,7 +24,24 @@
 
 namespace mlir {
 
-struct TestType;
+struct FieldInfo {
+public:
+  StringRef name;
+  Type type;
+
+  FieldInfo allocateInto(TypeStorageAllocator& alloc) const {
+    return FieldInfo { alloc.copyInto(name), type };
+  }
+};
+
+static bool operator==(const FieldInfo& a, const FieldInfo& b) {
+  return a.name == b.name && a.type == b.type;
+}
+
+static llvm::hash_code hash_value(const FieldInfo& fi) {
+  return llvm::hash_combine(fi.name, fi.type);
+}
+
 #define GET_TYPEDEF_CLASSES
 #include "TestTypeDefs.h.inc"
 #include "TestTypeInterfaces.h.inc"

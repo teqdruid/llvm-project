@@ -13,6 +13,7 @@
 #define MLIR_TABLEGEN_PARSER_HELPERS_H
 
 #include <type_traits>
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/DialectImplementation.h"
 
 namespace llvm {
@@ -49,7 +50,7 @@ namespace parser_helpers {
   /// Parse helpers
   template<typename T, typename Enable = void>
   struct parse {
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, T& result);
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, T& result);
   };
 
   // Int specialization
@@ -59,14 +60,14 @@ namespace parser_helpers {
                                     is_not_type<T, bool>::value >::type;
   template<typename T>
   struct parse<T, enable_if_integral_type<T>> {
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, T& result) {
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, T& result) {
       return parser.parseInteger(result);
     }
   };
 
   template<typename T>
   struct parse<T, enable_if_type<T, bool>> {
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, bool& result) {
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, bool& result) {
       StringRef boolStr;
       if (parser.parseKeyword(&boolStr)) return mlir::failure();
       if (!boolStr.compare_lower("false")) { result = false; return mlir::success(); }
@@ -81,7 +82,7 @@ namespace parser_helpers {
   using enable_if_float_type = typename std::enable_if<std::is_floating_point<T>::value>::type;
   template<typename T>
   struct parse<T, enable_if_float_type<T>> {
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, T& result) {
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, T& result) {
       double d;
       if (parser.parseFloat(d))
         return mlir::failure();
@@ -95,15 +96,25 @@ namespace parser_helpers {
   using enable_if_mlir_type = typename std::enable_if<std::is_convertible<T, mlir::Type>::value>::type;
   template<typename T>
   struct parse<T, enable_if_mlir_type<T>> {
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, Type& result) {
-      return parser.parseType(result);
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, T& result) {
+      Type type;
+      auto loc = parser.getCurrentLocation();
+      if (parser.parseType(type)) return mlir::failure();
+      if ((result = type.dyn_cast_or_null<T>()) == nullptr) {
+        parser.emitError(loc, "expected type '" + typeStr + "'");
+        return mlir::failure();
+      }
+      return mlir::success();
     }
   };
 
   template<typename T>
   struct parse<T, enable_if_type<T, StringRef>> {
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef& result) {
-      return parser.parseKeyword(result);
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, StringRef& result) {
+      StringAttr a;
+      if (parser.parseAttribute<StringAttr>(a)) return mlir::failure();
+      result = a.getValue();
+      return mlir::success();
     }
   };
 
@@ -111,18 +122,18 @@ namespace parser_helpers {
   struct parse<T, enable_if_arrayref<T>> {
     using inner_t = get_indexable_type<T>;
 
-    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, ArrayRef<inner_t>& result) {
-      auto members = alloc.Allocate<std::vector<inner_t>>();
+    static ParseResult go(MLIRContext* ctxt, DialectAsmParser& parser, llvm::BumpPtrAllocator& alloc, StringRef typeStr, ArrayRef<inner_t>& result) {
+      std::vector<inner_t>* members = new std::vector<inner_t>();
       if (parser.parseLSquare()) return mlir::failure();
         if (failed(parser.parseOptionalRSquare())) {
         do {
           inner_t member;// = std::declval<inner_t>();
-          parse<inner_t>::go(ctxt, parser, alloc, member);
+          parse<inner_t>::go(ctxt, parser, alloc, typeStr, member);
           members->push_back(member);
         } while (succeeded(parser.parseOptionalComma()));
         if (parser.parseRSquare()) return mlir::failure();
       }
-      result = T(*members);
+      result = ArrayRef<inner_t>(*members);
       return mlir::success();
     }
   };
@@ -137,13 +148,19 @@ namespace parser_helpers {
   template <typename T>
   using enable_if_trivial = typename std::enable_if<
                           std::is_convertible<T, mlir::Type>::value ||
-                          std::is_convertible<T, llvm::StringRef>::value ||
                           ( std::is_integral<T>::value && is_not_type<T, bool>::value ) ||
                           std::is_floating_point<T>::value>::type;
   template<typename T>
   struct print<T, enable_if_trivial< remove_constref<T> >> {
     static void go(DialectAsmPrinter& printer, const T& obj) {
       printer << obj;
+    }
+  };
+
+  template<typename T>
+  struct print<T, enable_if_type<T, StringRef> > {
+    static void go(DialectAsmPrinter& printer, const T& obj) {
+      printer << "\"" << obj << "\"";
     }
   };
 

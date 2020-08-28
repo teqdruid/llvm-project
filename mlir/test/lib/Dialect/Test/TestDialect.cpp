@@ -199,6 +199,8 @@ Type TestDialect::parseType(DialectAsmParser &parser) const {
 
 static void printTestType(Type type, DialectAsmPrinter &printer,
                           llvm::SetVector<Type> &stack) {
+  if (!generatedTypePrinter(type, printer))
+    return;
   if (type.isa<TestType>()) {
     printer << "test_type";
     return;

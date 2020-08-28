@@ -45,4 +45,75 @@ def CompoundTypeA : Test_Type<"CompoundA"> {
     }];
 }
 
+def IntegerType : Test_Type<"TestInteger"> {
+    let mnemonic = "int";
+    let genVerifyInvariantsDecl = 1;
+    let members = (
+        ins
+        "TestIntegerType::SignednessSemantics":$signedness, 
+        "unsigned":$width
+    );
+
+// DECL-LABEL: IntegerType: public Type
+
+    let extraDecls = [{
+  /// Signedness semantics.
+  enum SignednessSemantics {
+    Signless, /// No signedness semantics
+    Signed,   /// Signed integer
+    Unsigned, /// Unsigned integer
+  };
+
+  /// This extra function is necessary since it doesn't include signedness
+  static IntegerType getChecked(unsigned width, Location location);
+
+  /// Return true if this is a signless integer type.
+  bool isSignless() const { return getSignedness() == Signless; }
+  /// Return true if this is a signed integer type.
+  bool isSigned() const { return getSignedness() == Signed; }
+  /// Return true if this is an unsigned integer type.
+  bool isUnsigned() const { return getSignedness() == Unsigned; }
+    }];
+}
+
+class FieldInfo_Type<string name> : Test_Type<name> {
+let members = (
+    ins
+    ArrayRefOfSelfAllocationMember<"FieldInfo">: $fields
+);
+
+let printer = [{
+    printer << "struct" << "<";
+    for (size_t i=0; i<getImpl()->fields.size(); i++) {
+    const auto& field = getImpl()->fields[i];
+    printer << "{" << field.name << "," << field.type << "}";
+    if (i < getImpl()->fields.size() - 1)
+        printer << ",";
+    }
+    printer << ">";
+}];
+
+let parser = [{
+    SmallVector<FieldInfo, 4> members;
+    if (parser.parseLess()) return Type();
+    while (mlir::succeeded(parser.parseOptionalLBrace())) {
+        StringRef name;
+        if (parser.parseKeyword(&name)) return Type();
+        if (parser.parseComma()) return Type();
+        Type type;
+        if (parser.parseType(type)) return Type();
+        if (parser.parseRBrace()) return Type();
+        members.push_back(FieldInfo {name, type});
+        if (parser.parseOptionalComma()) break;
+    }
+    if (parser.parseGreater()) return Type();
+    return get(ctxt, members);
+}];
+}
+
+def StructType : FieldInfo_Type<"Struct"> {
+    let mnemonic = "struct";
+}
+
+
 #endif // TEST_TYPEDEFS
