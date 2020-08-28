@@ -33,7 +33,6 @@ struct parse<TestIntegerType::SignednessSemantics> {
   static ParseResult go(
       MLIRContext* ctxt,
       DialectAsmParser& parser,
-      llvm::BumpPtrAllocator& alloc,
       StringRef typeStr,
       TestIntegerType::SignednessSemantics& result)
     {

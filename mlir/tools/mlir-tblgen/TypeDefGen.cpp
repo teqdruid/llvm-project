@@ -378,12 +378,13 @@ static bool emitParserAutogen(TypeDef typeDef, raw_ostream& os) {
   SmallVector<TypeMember, 4> members;
   typeDef.getMembers(members);
   if (members.size() > 0) {
-    os << "  llvm::BumpPtrAllocator allocator;\n";
     os << "  if (parser.parseLess()) return Type();\n";
     for (auto memberIter = members.begin(); memberIter < members.end(); memberIter++) {
       os << "  " << memberIter->getCppType() << " " << memberIter->getName() << ";\n";
-      os << "  if (::mlir::tblgen::parser_helpers::parse<" << memberIter->getCppType() << ">::go(ctxt, parser, allocator, \"" << memberIter->getCppType() << "\", " << memberIter->getName() << "))\n";
-      os << "    return Type();\n";
+      os << llvm::formatv("  ::mlir::tblgen::parser_helpers::parse<{0}> {1}Parser;\n",
+                              memberIter->getCppType(), memberIter->getName());
+      os << llvm::formatv("  if ({0}Parser.go(ctxt, parser, \"{1}\", {0})) return Type();\n",
+                              memberIter->getName(), memberIter->getCppType());
       if (memberIter < members.end() - 1) {
         os << "  if (parser.parseComma()) return Type();\n";
       }

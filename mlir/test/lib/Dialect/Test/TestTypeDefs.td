@@ -26,12 +26,8 @@ def CompoundTypeA : Test_Type<"CompoundA"> {
     // What types do we contain?
     let members = (
         ins
-        // A standard c++ int
         "int":$widthOfSomething,
-        // The simple type defined above
         "SimpleAType": $exampleTdType,
-        // Some C++ type
-        // "CompoundAType::SomeCppStruct": $exampleCppType
         "float": $f,
         "double": $d,
         ArrayRefMember<"int">: $arrayOfInts,
@@ -53,8 +49,6 @@ def IntegerType : Test_Type<"TestInteger"> {
         "TestIntegerType::SignednessSemantics":$signedness, 
         "unsigned":$width
     );
-
-// DECL-LABEL: IntegerType: public Type
 
     let extraDecls = [{
   /// Signedness semantics.
