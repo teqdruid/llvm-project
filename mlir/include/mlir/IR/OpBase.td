@@ -979,6 +979,10 @@ class StringBasedAttr<Pred condition, string descr> : Attr<condition, descr> {
 def StrAttr : StringBasedAttr<CPred<"$_self.isa<::mlir::StringAttr>()">,
                               "string attribute">;
 
+// A string attribute that represents the name of a symbol.
+def SymbolNameAttr : StringBasedAttr<CPred<"$_self.isa<::mlir::StringAttr>()">,
+                                     "string attribute">;
+
 // String attribute that has a specific value type.
 class TypedStrAttr<Type ty>
     : StringBasedAttr<CPred<"$_self.isa<::mlir::StringAttr>()">,
@@ -1698,6 +1702,9 @@ def SameOperandsAndResultElementType :
   NativeOpTrait<"SameOperandsAndResultElementType">;
 // Op is a terminator.
 def Terminator : NativeOpTrait<"IsTerminator">;
+// Op can be safely normalized in the presence of MemRefs with
+// non-identity maps.
+def MemRefsNormalizable : NativeOpTrait<"MemRefsNormalizable">;
 
 // Op's regions have a single block with the specified terminator.
 class SingleBlockImplicitTerminator<string op>

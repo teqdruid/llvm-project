@@ -9239,6 +9239,9 @@ example, loading an ``i24`` reads at most three bytes. When loading a
 value of a type like ``i20`` with a size that is not an integral number
 of bytes, the result is undefined if the value was not originally
 written using a store of the same type.
+If the value being loaded is of aggregate type, the bytes that correspond to
+padding may be accessed but are ignored, because it is impossible to observe
+padding from the loaded aggregate value.
 
 Examples:
 """""""""
@@ -9328,6 +9331,8 @@ example, storing an ``i24`` writes at most three bytes. When writing a
 value of a type like ``i20`` with a size that is not an integral number
 of bytes, it is unspecified what happens to the extra bits that do not
 belong to the type, but they will typically be overwritten.
+If ``<value>`` is of aggregate type, padding is filled with
+:ref:`undef <undefvalues>`.
 
 Example:
 """"""""
@@ -16937,9 +16942,9 @@ where ``%m`` is a vector (mask) of active/inactive lanes with its elements
 indexed by ``i``,  and ``%base``, ``%n`` are the two arguments to
 ``llvm.get.active.lane.mask.*``, ``%icmp`` is an integer compare and ``ult``
 the unsigned less-than comparison operator.  Overflow cannot occur in
-``(%base + i)`` and its comparison against ``%n`` with ``%n > 0``, as it is
-performed in integer numbers and not in machine numbers. The above is
-equivalent to:
+``(%base + i)`` and its comparison against ``%n`` as it is performed in integer
+numbers and not in machine numbers.  If ``%n`` is ``0``, then the result is a
+poison value. The above is equivalent to:
 
 ::
 

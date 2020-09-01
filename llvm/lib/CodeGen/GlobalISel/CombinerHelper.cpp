@@ -1770,6 +1770,22 @@ bool CombinerHelper::matchUndefStore(MachineInstr &MI) {
                       MRI);
 }
 
+bool CombinerHelper::matchUndefSelectCmp(MachineInstr &MI) {
+  assert(MI.getOpcode() == TargetOpcode::G_SELECT);
+  return getOpcodeDef(TargetOpcode::G_IMPLICIT_DEF, MI.getOperand(1).getReg(),
+                      MRI);
+}
+
+bool CombinerHelper::matchConstantSelectCmp(MachineInstr &MI, unsigned &OpIdx) {
+  assert(MI.getOpcode() == TargetOpcode::G_SELECT);
+  if (auto MaybeCstCmp =
+          getConstantVRegValWithLookThrough(MI.getOperand(1).getReg(), MRI)) {
+    OpIdx = MaybeCstCmp->Value ? 2 : 3;
+    return true;
+  }
+  return false;
+}
+
 bool CombinerHelper::eraseInst(MachineInstr &MI) {
   MI.eraseFromParent();
   return true;
@@ -2133,6 +2149,14 @@ bool CombinerHelper::matchAndWithTrivialMask(MachineInstr &MI,
 
   // Now, let's check that x & Mask == x. If this is true, then x & ~Mask == 0.
   return KB->maskedValueIsZero(Replacement, ~Mask);
+}
+
+bool CombinerHelper::matchRedundantSExtInReg(MachineInstr &MI) {
+  // If the input is already sign extended, just drop the extension.
+  Register Src = MI.getOperand(1).getReg();
+  unsigned ExtBits = MI.getOperand(2).getImm();
+  unsigned TypeSize = MRI.getType(Src).getScalarSizeInBits();
+  return KB->computeNumSignBits(Src) >= (TypeSize - ExtBits + 1);
 }
 
 bool CombinerHelper::tryCombine(MachineInstr &MI) {
