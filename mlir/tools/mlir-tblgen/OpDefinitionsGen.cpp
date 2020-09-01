@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "GenUtilities.h"
 #include "OpFormatGen.h"
 #include "mlir/TableGen/Format.h"
 #include "mlir/TableGen/GenInfo.h"
@@ -157,23 +158,6 @@ static bool canUseUnwrappedRawValue(const tblgen::Attribute &attr) {
 //===----------------------------------------------------------------------===//
 // Op emitter
 //===----------------------------------------------------------------------===//
-
-namespace {
-// Simple RAII helper for defining ifdef-undef-endif scopes.
-class IfDefScope {
-public:
-  IfDefScope(StringRef name, raw_ostream &os) : name(name), os(os) {
-    os << "#ifdef " << name << "\n"
-       << "#undef " << name << "\n\n";
-  }
-
-  ~IfDefScope() { os << "\n#endif  // " << name << "\n\n"; }
-
-private:
-  StringRef name;
-  raw_ostream &os;
-};
-} // end anonymous namespace
 
 namespace {
 // Helper class to emit a record into the given output stream.
