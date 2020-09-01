@@ -1,5 +1,4 @@
-//===- TestTypes.cpp - MLIR Test Dialect Types --------------------*- C++
-//-*-===//
+//===- TestTypes.cpp - MLIR Test Dialect Types ----------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,13 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// TODO: What is the right way to add a hash function? I got compile issues
-// which this solved.
-namespace llvm {
-class hash_code;
-hash_code hash_value(float f);
-} // namespace llvm
-
 #include "TestTypes.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Types.h"
@@ -27,13 +19,12 @@ hash_code hash_value(float f);
 #include "llvm/ADT/TypeSwitch.h"
 
 namespace mlir {
-
 namespace tblgen {
 namespace parser_helpers {
 
 // Custom parser for SignednessSemantics
 template <>
-struct parse<TestIntegerType::SignednessSemantics> {
+struct Parse<TestIntegerType::SignednessSemantics> {
   static ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
                         StringRef memberName,
                         TestIntegerType::SignednessSemantics &result) {
@@ -57,7 +48,7 @@ struct parse<TestIntegerType::SignednessSemantics> {
 
 // Custom printer for SignednessSemantics
 template <>
-struct print<TestIntegerType::SignednessSemantics> {
+struct Print<TestIntegerType::SignednessSemantics> {
   static void go(DialectAsmPrinter &printer,
                  const TestIntegerType::SignednessSemantics &ss) {
     switch (ss) {

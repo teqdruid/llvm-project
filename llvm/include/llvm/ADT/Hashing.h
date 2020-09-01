@@ -104,6 +104,9 @@ public:
 template <typename T>
 std::enable_if_t<is_integral_or_enum<T>::value, hash_code> hash_value(T value);
 
+hash_code hash_value(float value);
+hash_code hash_value(double value);
+
 /// Compute a hash_code for a pointer's address.
 ///
 /// N.B.: This hashes the *address*. Not the value and not the type.
