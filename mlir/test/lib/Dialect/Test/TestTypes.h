@@ -17,10 +17,10 @@
 #include <tuple>
 
 #include "mlir/IR/Diagnostics.h"
-#include "mlir/IR/Types.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/Types.h"
 
 namespace mlir {
 
@@ -29,18 +29,13 @@ public:
   StringRef name;
   Type type;
 
-  FieldInfo allocateInto(TypeStorageAllocator& alloc) const {
-    return FieldInfo { alloc.copyInto(name), type };
+  FieldInfo allocateInto(TypeStorageAllocator &alloc) const {
+    return FieldInfo{alloc.copyInto(name), type};
   }
 };
 
-static bool operator==(const FieldInfo& a, const FieldInfo& b) {
-  return a.name == b.name && a.type == b.type;
-}
-
-static llvm::hash_code hash_value(const FieldInfo& fi) {
-  return llvm::hash_combine(fi.name, fi.type);
-}
+bool operator==(const FieldInfo &a, const FieldInfo &b);
+llvm::hash_code hash_value(const FieldInfo &fi);
 
 #define GET_TYPEDEF_CLASSES
 #include "TestTypeDefs.h.inc"
@@ -104,7 +99,6 @@ public:
   /// Name/key getter.
   StringRef getName() { return getImpl()->name; }
 };
-
 
 } // end namespace mlir
 

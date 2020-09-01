@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "OpFormatGen.h"
 #include "GenUtilities.h"
+#include "OpFormatGen.h"
 #include "mlir/TableGen/Format.h"
 #include "mlir/TableGen/GenInfo.h"
 #include "mlir/TableGen/Interfaces.h"

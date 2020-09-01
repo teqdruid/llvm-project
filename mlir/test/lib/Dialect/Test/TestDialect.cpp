@@ -141,17 +141,14 @@ void TestDialect::initialize() {
       >();
   addInterfaces<TestOpAsmInterface, TestDialectFoldInterface,
                 TestInlinerInterface>();
-  addTypes<
-    TestType,
-    TestRecursiveType,
-    #define GET_TYPEDEF_LIST
-    #include "TestTypeDefs.cpp.inc"
-    >();
+  addTypes<TestType, TestRecursiveType,
+#define GET_TYPEDEF_LIST
+#include "TestTypeDefs.cpp.inc"
+           >();
   allowUnknownOperations();
 }
 
-static Type parseTestType(MLIRContext* ctxt,
-                          DialectAsmParser &parser,
+static Type parseTestType(MLIRContext *ctxt, DialectAsmParser &parser,
                           llvm::SetVector<Type> &stack) {
   StringRef typeTag;
   if (failed(parser.parseKeyword(&typeTag)))

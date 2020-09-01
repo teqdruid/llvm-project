@@ -11,20 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringExtras.h"
 #include "GenUtilities.h"
+#include "llvm/ADT/StringExtras.h"
 
 namespace mlir {
 namespace tblgen {
 
-IfDefScope::IfDefScope(llvm::StringRef name, llvm::raw_ostream &os) : name(name), os(os) {
+IfDefScope::IfDefScope(llvm::StringRef name, llvm::raw_ostream &os)
+    : name(name), os(os) {
   os << "#ifdef " << name << "\n"
      << "#undef " << name << "\n\n";
 }
 
-IfDefScope::~IfDefScope() {
-  os << "\n#endif  // " << name << "\n\n";
-}
+IfDefScope::~IfDefScope() { os << "\n#endif  // " << name << "\n\n"; }
 
 } // namespace tblgen
 } // namespace mlir

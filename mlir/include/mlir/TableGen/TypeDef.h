@@ -15,8 +15,8 @@
 #include "mlir/Support/LLVM.h"
 #include "mlir/TableGen/Dialect.h"
 #include "llvm/TableGen/Record.h"
-#include <string>
 #include <functional>
+#include <string>
 
 namespace llvm {
 class Record;
@@ -56,12 +56,13 @@ public:
   bool hasStorageCustomConstructor() const;
 
   // Return the list of fields for the storage class and constructors
-  void getMembers(SmallVectorImpl<TypeMember>&) const;
+  void getMembers(SmallVectorImpl<TypeMember> &) const;
   unsigned getNumMembers() const;
 
   // Iterate though members, applying a map function before adding to list
   template <typename T>
-  void getMembersAs(SmallVectorImpl<T>& members, std::function<T (TypeMember)> map) const;
+  void getMembersAs(SmallVectorImpl<T> &members,
+                    std::function<T(TypeMember)> map) const;
 
   // Return the keyword/mnemonic to use in the printer/parser methods if we are
   // supposed to auto-generate them
@@ -77,7 +78,6 @@ public:
   // declaration and definition.
   llvm::Optional<StringRef> getParserCode() const;
 
-
   // Should we generate accessors based on the types members?
   bool genAccessors() const;
 
@@ -87,7 +87,6 @@ public:
 
   // Returns the dialects extra class declaration code.
   llvm::Optional<StringRef> getExtraDecls() const;
-
 
   // Returns whether two dialects are equal by checking the equality of the
   // underlying record.
@@ -105,7 +104,8 @@ private:
 
 class TypeMember {
 public:
-  explicit TypeMember(const llvm::DagInit *def, unsigned num) : def(def), num(num) {}
+  explicit TypeMember(const llvm::DagInit *def, unsigned num)
+      : def(def), num(num) {}
 
   StringRef getName() const;
   llvm::Optional<StringRef> getAllocator() const;
@@ -117,10 +117,11 @@ private:
 };
 
 template <typename T>
-void TypeDef::getMembersAs(SmallVectorImpl<T>& members, std::function<T (TypeMember)> map) const {
+void TypeDef::getMembersAs(SmallVectorImpl<T> &members,
+                           std::function<T(TypeMember)> map) const {
   auto membersDag = def->getValueAsDag("members");
   if (membersDag != nullptr)
-    for (unsigned i=0; i<membersDag->getNumArgs(); i++)
+    for (unsigned i = 0; i < membersDag->getNumArgs(); i++)
       members.push_back(map(TypeMember(membersDag, i)));
 }
 

@@ -11,35 +11,41 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/TableGen/TypeDef.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
-#include "llvm/ADT/StringExtras.h"
 
 using namespace mlir;
 using namespace mlir::tblgen;
 
 Dialect TypeDef::getDialect() const {
   return Dialect(
-    dyn_cast<llvm::DefInit>(def->getValue("owningDialect")->getValue())->getDef()
-  );
+      dyn_cast<llvm::DefInit>(def->getValue("owningDialect")->getValue())
+          ->getDef());
 }
 
 StringRef TypeDef::getName() const { return def->getName(); }
-StringRef TypeDef::getCppClassName() const { return def->getValueAsString("cppClassName"); }
+StringRef TypeDef::getCppClassName() const {
+  return def->getValueAsString("cppClassName");
+}
 
-StringRef TypeDef::getStorageClassName() const { return def->getValueAsString("storageClass"); }
-StringRef TypeDef::getStorageNamespace() const { return def->getValueAsString("storageNamespace"); }
+StringRef TypeDef::getStorageClassName() const {
+  return def->getValueAsString("storageClass");
+}
+StringRef TypeDef::getStorageNamespace() const {
+  return def->getValueAsString("storageNamespace");
+}
 
-bool TypeDef::genStorageClass() const{
+bool TypeDef::genStorageClass() const {
   return def->getValueAsBit("genStorageClass");
 }
-bool TypeDef::hasStorageCustomConstructor() const{
+bool TypeDef::hasStorageCustomConstructor() const {
   return def->getValueAsBit("hasStorageCustomConstructor");
 }
-void TypeDef::getMembers(SmallVectorImpl<TypeMember>& members) const {
+void TypeDef::getMembers(SmallVectorImpl<TypeMember> &members) const {
   auto membersDag = def->getValueAsDag("members");
   if (membersDag != nullptr)
-    for (unsigned i=0; i<membersDag->getNumArgs(); i++)
+    for (unsigned i = 0; i < membersDag->getNumArgs(); i++)
       members.push_back(TypeMember(membersDag, i));
 }
 unsigned TypeDef::getNumMembers() const {
@@ -48,33 +54,37 @@ unsigned TypeDef::getNumMembers() const {
     return 0;
   return membersDag->getNumArgs();
 }
-llvm::Optional<StringRef> TypeDef::getMnemonic() const{
+llvm::Optional<StringRef> TypeDef::getMnemonic() const {
   auto code = def->getValue("mnemonic");
   if (llvm::StringInit *CI = dyn_cast<llvm::StringInit>(code->getValue()))
     return CI->getValue();
   if (isa<llvm::UnsetInit>(code->getValue()))
     return llvm::Optional<StringRef>();
 
-  llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
-    "', field `printer' does not have a code initializer!");
+  llvm::PrintFatalError(
+      def->getLoc(),
+      "Record `" + def->getName() +
+          "', field `printer' does not have a code initializer!");
 }
-llvm::Optional<StringRef> TypeDef::getPrinterCode() const{
+llvm::Optional<StringRef> TypeDef::getPrinterCode() const {
   auto code = def->getValue("printer");
   if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
     return CI->getValue();
   if (isa<llvm::UnsetInit>(code->getValue()))
     return llvm::Optional<StringRef>();
 
-  llvm::PrintFatalError(def->getLoc(), "Record `" + def->getName() + 
-    "', field `printer' does not have a code initializer!");
+  llvm::PrintFatalError(
+      def->getLoc(),
+      "Record `" + def->getName() +
+          "', field `printer' does not have a code initializer!");
 }
-llvm::Optional<StringRef> TypeDef::getParserCode() const{
+llvm::Optional<StringRef> TypeDef::getParserCode() const {
   return def->getValueAsString("parser");
 }
-bool TypeDef::genAccessors() const{
+bool TypeDef::genAccessors() const {
   return def->getValueAsBit("genAccessors");
 }
-bool TypeDef::genVerifyInvariantsDecl() const{
+bool TypeDef::genVerifyInvariantsDecl() const {
   return def->getValueAsBit("genVerifyInvariantsDecl");
 }
 
@@ -91,7 +101,6 @@ bool TypeDef::operator<(const TypeDef &other) const {
   return getName() < other.getName();
 }
 
-
 StringRef TypeMember::getName() const {
   return def->getArgName(num)->getValue();
 }
@@ -106,10 +115,13 @@ llvm::Optional<StringRef> TypeMember::getAllocator() const {
     if (isa<llvm::UnsetInit>(code->getValue()))
       return llvm::Optional<StringRef>();
 
-    llvm::PrintFatalError(typeMember->getDef()->getLoc(), "Record `" + def->getArgName(num)->getValue() + 
-      "', field `printer' does not have a code initializer!");
+    llvm::PrintFatalError(
+        typeMember->getDef()->getLoc(),
+        "Record `" + def->getArgName(num)->getValue() +
+            "', field `printer' does not have a code initializer!");
   } else {
-    llvm::errs() << "Members DAG arguments must be either strings or defs which inherit from TypeMember\n";
+    llvm::errs() << "Members DAG arguments must be either strings or defs "
+                    "which inherit from TypeMember\n";
     return StringRef();
   }
 }
@@ -120,7 +132,8 @@ StringRef TypeMember::getCppType() const {
   } else if (auto typeMember = dyn_cast<llvm::DefInit>(memberType)) {
     return typeMember->getDef()->getValueAsString("cppType");
   } else {
-    llvm::errs() << "Members DAG arguments must be either strings or defs which inherit from TypeMember\n";
+    llvm::errs() << "Members DAG arguments must be either strings or defs "
+                    "which inherit from TypeMember\n";
     return StringRef();
   }
 }
