@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+// TODO: What is the right way to add a hash function? I got compile issues
+// which this solved.
 namespace llvm {
     class hash_code;
     hash_code hash_value(float f);
@@ -28,12 +30,13 @@ namespace mlir {
 namespace tblgen {
 namespace parser_helpers {
 
+// Custom parser for SignednessSemantics
 template<>
 struct parse<TestIntegerType::SignednessSemantics> {
   static ParseResult go(
       MLIRContext* ctxt,
       DialectAsmParser& parser,
-      StringRef typeStr,
+      StringRef memberName,
       TestIntegerType::SignednessSemantics& result)
     {
       StringRef signStr;
@@ -50,6 +53,7 @@ struct parse<TestIntegerType::SignednessSemantics> {
     }
 };
 
+// Custom printer for SignednessSemantics
 template<>
 struct print<TestIntegerType::SignednessSemantics> {
   static void go(DialectAsmPrinter& printer, const TestIntegerType::SignednessSemantics& ss) {
@@ -70,6 +74,7 @@ struct print<TestIntegerType::SignednessSemantics> {
 }
 }
 
+// Example type validity checker
 LogicalResult TestIntegerType::verifyConstructionInvariants(
     mlir::Location loc,
     mlir::TestIntegerType::SignednessSemantics ss,
@@ -82,7 +87,5 @@ LogicalResult TestIntegerType::verifyConstructionInvariants(
 struct TestType;
 #define GET_TYPEDEF_CLASSES
 #include "TestTypeDefs.cpp.inc"
-
-
 
 } // end namespace mlir

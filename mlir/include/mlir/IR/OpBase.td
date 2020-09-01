@@ -2348,7 +2348,7 @@ class TypeDef<Dialect dialect, string name> {
   code printer = [{}];
   code parser = [{}];
 
-  // If set, generate accessors for each TypeMember
+  // If set, generate accessors for each Type member
   bit genAccessors = 1;
   // Generate the verifyConstructionInvariants declaration and getChecked method
   bit genVerifyInvariantsDecl = 0;
