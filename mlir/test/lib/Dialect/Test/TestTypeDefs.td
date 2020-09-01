@@ -46,7 +46,7 @@ def IntegerType : Test_Type<"TestInteger"> {
     let genVerifyInvariantsDecl = 1;
     let members = (
         ins
-        "TestIntegerType::SignednessSemantics":$signedness, 
+        "TestIntegerType::SignednessSemantics":$signedness,
         "unsigned":$width
     );
 

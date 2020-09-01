@@ -1,4 +1,5 @@
 // RUN: mlir-tblgen -gen-typedef-decls -I %S/../../include %s | FileCheck %s --check-prefix=DECL
+// RUN: mlir-tblgen -gen-typedef-defs -I %S/../../include %s | FileCheck %s --check-prefix=DEF
 
 include "mlir/IR/OpBase.td"
 
@@ -51,9 +52,9 @@ def B_CompoundTypeA : TestType<"CompoundA"> {
 // DECL: static LogicalResult verifyConstructionInvariants(Location loc, int widthOfSomething, SimpleTypeA exampleTdType, SomeCppStruct exampleCppType);
 // DECL: static CompoundAType getChecked(Location loc, int widthOfSomething, SimpleTypeA exampleTdType, SomeCppStruct exampleCppType);
 // DECL: static StringRef getMnemonic() { return "cmpnd_a"; }
-// DECL: int getWidthOfSomething();
-// DECL: SimpleTypeA getExampleTdType();
-// DECL: SomeCppStruct getExampleCppType();
+// DECL: int getWidthOfSomething() const;
+// DECL: SimpleTypeA getExampleTdType() const;
+// DECL: SomeCppStruct getExampleCppType() const;
 }
 
 def C_IndexType : TestType<"Index"> {
@@ -70,7 +71,7 @@ def D_SingleMemberType : TestType<"SingleMember"> {
     ins
     "int": $num
   );
-// DECL-LABEL: class SingleMemberTypeStorage;
+// DECL-LABEL: struct SingleMemberTypeStorage;
 // DECL-LABEL: class SingleMemberType
 // DECL-NEXT:                   detail::SingleMemberTypeStorage
 // DECL: static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
