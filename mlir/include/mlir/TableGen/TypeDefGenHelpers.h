@@ -19,15 +19,7 @@
 #include "mlir/IR/DialectImplementation.h"
 #include <type_traits>
 
-//===----------------------------------------------------------------------===//
-//
-// Extra hash functions
-//
-//===----------------------------------------------------------------------===//
-namespace llvm {
-// TODO: Replace this with something better
-hash_code hash_value(float f) { return *(uint32_t *)&f; }
-} // namespace llvm
+
 
 namespace mlir {
 namespace tblgen {
@@ -69,7 +61,7 @@ using enable_if_arrayref =
 //===----------------------------------------------------------------------===//
 
 template <typename T, typename Enable = void>
-struct parse {
+struct Parse {
   ParseResult go(MLIRContext *ctxt,        // The context, should it be needed
                  DialectAsmParser &parser, // The parser
                  StringRef memberName, // Type member name, for error printing
@@ -83,7 +75,7 @@ using enable_if_integral_type =
     typename std::enable_if<std::is_integral<T>::value &&
                             is_not_type<T, bool>::value>::type;
 template <typename T>
-struct parse<T, enable_if_integral_type<T>> {
+struct Parse<T, enable_if_integral_type<T>> {
   ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
                  StringRef memberName, T &result) {
     return parser.parseInteger(result);
@@ -92,7 +84,7 @@ struct parse<T, enable_if_integral_type<T>> {
 
 // Bool specialization -- 'true' / 'false' instead of 0/1
 template <typename T>
-struct parse<T, enable_if_type<T, bool>> {
+struct Parse<T, enable_if_type<T, bool>> {
   ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
                  StringRef memberName, bool &result) {
     StringRef boolStr;
@@ -116,7 +108,7 @@ template <typename T>
 using enable_if_float_type =
     typename std::enable_if<std::is_floating_point<T>::value>::type;
 template <typename T>
-struct parse<T, enable_if_float_type<T>> {
+struct Parse<T, enable_if_float_type<T>> {
   ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
                  StringRef memberName, T &result) {
     double d;
@@ -132,7 +124,7 @@ template <typename T>
 using enable_if_mlir_type =
     typename std::enable_if<std::is_convertible<T, mlir::Type>::value>::type;
 template <typename T>
-struct parse<T, enable_if_mlir_type<T>> {
+struct Parse<T, enable_if_mlir_type<T>> {
   ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
                  StringRef memberName, T &result) {
     Type type;
@@ -149,7 +141,7 @@ struct parse<T, enable_if_mlir_type<T>> {
 
 // StringRef specialization
 template <typename T>
-struct parse<T, enable_if_type<T, StringRef>> {
+struct Parse<T, enable_if_type<T, StringRef>> {
   ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
                  StringRef memberName, StringRef &result) {
     StringAttr a;
@@ -162,9 +154,9 @@ struct parse<T, enable_if_type<T, StringRef>> {
 
 // ArrayRef specialization
 template <typename T>
-struct parse<T, enable_if_arrayref<T>> {
+struct Parse<T, enable_if_arrayref<T>> {
   using inner_t = get_indexable_type<T>;
-  parse<inner_t> innerParser;
+  Parse<inner_t> innerParser;
   llvm::SmallVector<inner_t, 4> members;
 
   ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
@@ -192,7 +184,7 @@ struct parse<T, enable_if_arrayref<T>> {
 //===----------------------------------------------------------------------===//
 
 template <typename T, typename Enable = void>
-struct print {
+struct Print {
   static void go(DialectAsmPrinter &printer, const T &obj);
 };
 
@@ -204,13 +196,13 @@ using enable_if_trivial_print =
                              is_not_type<T, bool>::value) ||
                             std::is_floating_point<T>::value>::type;
 template <typename T>
-struct print<T, enable_if_trivial_print<remove_constref<T>>> {
+struct Print<T, enable_if_trivial_print<remove_constref<T>>> {
   static void go(DialectAsmPrinter &printer, const T &obj) { printer << obj; }
 };
 
 // StringRef has to be quoted to match the parse specialization above
 template <typename T>
-struct print<T, enable_if_type<T, StringRef>> {
+struct Print<T, enable_if_type<T, StringRef>> {
   static void go(DialectAsmPrinter &printer, const T &obj) {
     printer << "\"" << obj << "\"";
   }
@@ -218,7 +210,7 @@ struct print<T, enable_if_type<T, StringRef>> {
 
 // bool specialization
 template <typename T>
-struct print<T, enable_if_type<T, bool>> {
+struct Print<T, enable_if_type<T, bool>> {
   static void go(DialectAsmPrinter &printer, const bool &obj) {
     if (obj)
       printer << "true";
@@ -229,12 +221,12 @@ struct print<T, enable_if_type<T, bool>> {
 
 // ArrayRef specialization
 template <typename T>
-struct print<T, enable_if_arrayref<T>> {
+struct Print<T, enable_if_arrayref<T>> {
   static void go(DialectAsmPrinter &printer,
                  const ArrayRef<get_indexable_type<T>> &obj) {
     printer << "[";
     for (size_t i = 0; i < obj.size(); i++) {
-      print<remove_constref<decltype(obj[i])>>::go(printer, obj[i]);
+      Print<remove_constref<decltype(obj[i])>>::go(printer, obj[i]);
       if (i < obj.size() - 1)
         printer << ", ";
     }

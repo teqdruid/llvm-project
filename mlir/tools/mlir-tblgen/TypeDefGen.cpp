@@ -249,7 +249,7 @@ static bool emitTypeDefDecls(const llvm::RecordKeeper &recordKeeper,
 static mlir::LogicalResult emitTypeDefList(SmallVectorImpl<TypeDef> &typeDefs,
                                            raw_ostream &os) {
   IfDefScope scope("GET_TYPEDEF_LIST", os);
-  for (auto i = typeDefs.begin(); i != typeDefs.end(); i++) {
+  for (auto *i = typeDefs.begin(); i != typeDefs.end(); i++) {
     os << "  " << i->getCppClassName();
     if (i < typeDefs.end() - 1)
       os << ",\n";
@@ -351,7 +351,7 @@ static mlir::LogicalResult emitStorageClass(TypeDef typeDef, raw_ostream &os) {
   // then combine them all. this requires all the members types to have a
   // hash_value defined
   os << "        return llvm::hash_combine(\n";
-  for (auto memberIter = members.begin(); memberIter < members.end();
+  for (auto *memberIter = members.begin(); memberIter < members.end();
        memberIter++) {
     os << "          " << memberIter->getName();
     if (memberIter < members.end() - 1) {
@@ -408,10 +408,10 @@ static mlir::LogicalResult emitPrinterAutogen(TypeDef typeDef,
       // emit a printer for each member separated by ','.
       // printer structs for common C++ types are defined in
       // TypeDefGenHelpers.h, which must be #included by the consuming code.
-      for (auto memberIter = members.begin(); memberIter < members.end();
+      for (auto *memberIter = members.begin(); memberIter < members.end();
            memberIter++) {
         // Each printer struct must be put on the stack then 'go' called
-        os << "  ::mlir::tblgen::parser_helpers::print<"
+        os << "  ::mlir::tblgen::parser_helpers::Print<"
            << memberIter->getCppType() << ">::go(printer, getImpl()->"
            << memberIter->getName() << ");\n";
 
@@ -438,12 +438,12 @@ static mlir::LogicalResult emitParserAutogen(TypeDef typeDef, raw_ostream &os) {
     // emit a parser for each member separated by ','.
     // parse structs for common C++ types are defined in
     // TypeDefGenHelpers.h, which must be #included by the consuming code.
-    for (auto memberIter = members.begin(); memberIter < members.end();
+    for (auto *memberIter = members.begin(); memberIter < members.end();
          memberIter++) {
       os << "  " << memberIter->getCppType() << " " << memberIter->getName()
          << ";\n";
       os << llvm::formatv(
-          "  ::mlir::tblgen::parser_helpers::parse<{0}> {1}Parser;\n",
+          "  ::mlir::tblgen::parser_helpers::Parse<{0}> {1}Parser;\n",
           memberIter->getCppType(), memberIter->getName());
       os << llvm::formatv(
           "  if ({0}Parser.go(ctxt, parser, \"{1}\", {0})) return Type();\n",

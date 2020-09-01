@@ -1,4 +1,4 @@
-//===- DocGenUtilities.h - MLIR doc gen utilities ---------------*- C++ -*-===//
+//===- GenUtilities.h - MLIR doc gen utilities ---------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines common utilities for generating documents from tablegen
+// This file defines common utilities for generating C++ from tablegen
 // structures.
 //
 //===----------------------------------------------------------------------===//
@@ -22,8 +22,11 @@ namespace tblgen {
 // Simple RAII helper for defining ifdef-undef-endif scopes.
 class IfDefScope {
 public:
-  IfDefScope(llvm::StringRef name, llvm::raw_ostream &os);
-  ~IfDefScope();
+  inline IfDefScope(llvm::StringRef name, llvm::raw_ostream &os) : name(name), os(os) {
+    os << "#ifdef " << name << "\n"
+      << "#undef " << name << "\n\n";
+  }
+  inline ~IfDefScope() { os << "\n#endif  // " << name << "\n\n"; }
 
 private:
   llvm::StringRef name;

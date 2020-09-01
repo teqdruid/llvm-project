@@ -43,21 +43,21 @@ bool TypeDef::hasStorageCustomConstructor() const {
   return def->getValueAsBit("hasStorageCustomConstructor");
 }
 void TypeDef::getMembers(SmallVectorImpl<TypeMember> &members) const {
-  auto membersDag = def->getValueAsDag("members");
+  auto *membersDag = def->getValueAsDag("members");
   if (membersDag != nullptr)
     for (unsigned i = 0; i < membersDag->getNumArgs(); i++)
       members.push_back(TypeMember(membersDag, i));
 }
 unsigned TypeDef::getNumMembers() const {
-  auto membersDag = def->getValueAsDag("members");
+  auto *membersDag = def->getValueAsDag("members");
   if (membersDag == nullptr)
     return 0;
   return membersDag->getNumArgs();
 }
 llvm::Optional<StringRef> TypeDef::getMnemonic() const {
-  auto code = def->getValue("mnemonic");
-  if (llvm::StringInit *CI = dyn_cast<llvm::StringInit>(code->getValue()))
-    return CI->getValue();
+  const auto *code = def->getValue("mnemonic");
+  if (llvm::StringInit *ci = dyn_cast<llvm::StringInit>(code->getValue()))
+    return ci->getValue();
   if (isa<llvm::UnsetInit>(code->getValue()))
     return llvm::Optional<StringRef>();
 
@@ -67,9 +67,9 @@ llvm::Optional<StringRef> TypeDef::getMnemonic() const {
           "', field `printer' does not have a code initializer!");
 }
 llvm::Optional<StringRef> TypeDef::getPrinterCode() const {
-  auto code = def->getValue("printer");
-  if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
-    return CI->getValue();
+  const auto *code = def->getValue("printer");
+  if (llvm::CodeInit *ci = dyn_cast<llvm::CodeInit>(code->getValue()))
+    return ci->getValue();
   if (isa<llvm::UnsetInit>(code->getValue()))
     return llvm::Optional<StringRef>();
 
@@ -105,13 +105,13 @@ StringRef TypeMember::getName() const {
   return def->getArgName(num)->getValue();
 }
 llvm::Optional<StringRef> TypeMember::getAllocator() const {
-  auto memberType = def->getArg(num);
-  if (auto stringType = dyn_cast<llvm::StringInit>(memberType)) {
+  auto *memberType = def->getArg(num);
+  if (auto *stringType = dyn_cast<llvm::StringInit>(memberType)) {
     return llvm::Optional<StringRef>();
-  } else if (auto typeMember = dyn_cast<llvm::DefInit>(memberType)) {
-    auto code = typeMember->getDef()->getValue("allocator");
-    if (llvm::CodeInit *CI = dyn_cast<llvm::CodeInit>(code->getValue()))
-      return CI->getValue();
+  } else if (auto *typeMember = dyn_cast<llvm::DefInit>(memberType)) {
+    auto *code = typeMember->getDef()->getValue("allocator");
+    if (llvm::CodeInit *ci = dyn_cast<llvm::CodeInit>(code->getValue()))
+      return ci->getValue();
     if (isa<llvm::UnsetInit>(code->getValue()))
       return llvm::Optional<StringRef>();
 
@@ -126,10 +126,10 @@ llvm::Optional<StringRef> TypeMember::getAllocator() const {
   }
 }
 StringRef TypeMember::getCppType() const {
-  auto memberType = def->getArg(num);
-  if (auto stringType = dyn_cast<llvm::StringInit>(memberType)) {
+  auto *memberType = def->getArg(num);
+  if (auto *stringType = dyn_cast<llvm::StringInit>(memberType)) {
     return stringType->getValue();
-  } else if (auto typeMember = dyn_cast<llvm::DefInit>(memberType)) {
+  } else if (auto *typeMember = dyn_cast<llvm::DefInit>(memberType)) {
     return typeMember->getDef()->getValueAsString("cppType");
   } else {
     llvm::errs() << "Members DAG arguments must be either strings or defs "
