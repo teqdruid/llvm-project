@@ -19,8 +19,6 @@
 #include "mlir/IR/DialectImplementation.h"
 #include <type_traits>
 
-
-
 namespace mlir {
 namespace tblgen {
 namespace parser_helpers {
