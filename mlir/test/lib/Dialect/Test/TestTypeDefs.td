@@ -30,10 +30,10 @@ def CompoundTypeA : Test_Type<"CompoundA"> {
         "SimpleAType": $exampleTdType,
         "float": $f,
         "double": $d,
-        ArrayRefMember<"int">: $arrayOfInts,
-        ArrayRefMember<"Type">: $arrayOfTypes,
+        ArrayRefMember<"int", "">: $arrayOfInts,
+        ArrayRefMember<"Type", "An example of an array of types as a type parameter">: $arrayOfTypes,
         "StringRef": $simpleString,
-        ArrayRefMember<"StringRef">: $arrayOfStrings
+        ArrayRefMember<"StringRef", "">: $arrayOfStrings
     );
 
     let extraDecls = [{
@@ -73,7 +73,7 @@ def IntegerType : Test_Type<"TestInteger"> {
 class FieldInfo_Type<string name> : Test_Type<name> {
 let members = (
     ins
-    ArrayRefOfSelfAllocationMember<"FieldInfo">: $fields
+    ArrayRefOfSelfAllocationMember<"FieldInfo", "Models struct fields">: $fields
 );
 
 let printer = [{

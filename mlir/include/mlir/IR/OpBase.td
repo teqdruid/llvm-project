@@ -2331,6 +2331,11 @@ class TypeDef<Dialect dialect, string name> {
   Dialect owningDialect = dialect;
   string cppClassName = name # "Type";
 
+  // Short summary of the type
+  string summary = ?;
+  // The longer description of this type
+  string description = ?;
+
   // Name of storage class to generate or use
   string storageClass = name # "TypeStorage";
   // Namespace (withing dialect c++ namespace) in which the storage class resides
@@ -2365,28 +2370,32 @@ class TypeDef<Dialect dialect, string name> {
 
 // 'Members' should be subclasses of this or simple strings (which is a
 // shorthand for TypeMember<"C++Type">)
-class TypeMember<string type> {
+class TypeMember<string type, string desc> {
   code allocator = ?;
   string cppType = type;
+  string description = desc;
+  string syntax = ?;
 }
 
 // For StringRefs, which require allocation
-class StringRefMember : TypeMember<"StringRef"> {
+class StringRefMember<string desc> : TypeMember<"StringRef", desc> {
   let allocator = [{$_dst = $_allocator.copyInto($_self);}];
+  let syntax = "\"foo bar\"";
 }
 
 // For standard ArrayRefs, which require allocation
-class ArrayRefMember<string arrayOf> : TypeMember<"ArrayRef<" # arrayOf # ">"> {
+class ArrayRefMember<string arrayOf, string desc> : TypeMember<"ArrayRef<" # arrayOf # ">", desc> {
   let allocator = [{$_dst = $_allocator.copyInto($_self);}];
+  let syntax = "[ " # arrayOf # ", " # arrayOf # ", ... ]";
 }
 
 // For classes which require allocation and have their own allocateInto method
-class SelfAllocationMember<string type> : TypeMember<type> {
+class SelfAllocationMember<string type, string desc> : TypeMember<type, desc> {
   let allocator = [{$_dst = $_self.allocateInto($_allocator);}];
 }
 
 // For ArrayRefs which contain things which allocate themselves
-class ArrayRefOfSelfAllocationMember<string arrayOf> : TypeMember<"ArrayRef<" # arrayOf # ">"> {
+class ArrayRefOfSelfAllocationMember<string arrayOf, string desc> : TypeMember<"ArrayRef<" # arrayOf # ">", desc> {
   let allocator = [{
     SmallVector<}] # arrayOf # [{, 4> tmpFields($_self.size());
     for (size_t i=0; i<$_self.size(); i++) {
@@ -2394,6 +2403,7 @@ class ArrayRefOfSelfAllocationMember<string arrayOf> : TypeMember<"ArrayRef<" # 
     }
     $_dst = $_allocator.copyInto(ArrayRef<}] # arrayOf # [{>(tmpFields));
     }];
+  let syntax = "[ " # arrayOf # ", " # arrayOf # ", ... ]";
 }
 
 

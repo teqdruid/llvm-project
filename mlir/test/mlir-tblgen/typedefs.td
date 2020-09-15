@@ -37,16 +37,18 @@ def A_SimpleTypeA : TestType<"SimpleA"> {
 
 // A more complex parameterized type
 def B_CompoundTypeA : TestType<"CompoundA"> {
+  let summary = "A more complex parameterized type";
+  let description = "This type is to test a reasonably complex type";
+  let mnemonic = "cmpnd_a";
+  let members = (
+      ins
+      "int":$widthOfSomething,
+      "SimpleTypeA": $exampleTdType,
+      "SomeCppStruct": $exampleCppType,
+      ArrayRefMember<"int", "Matrix dimensions">:$dims
+  );
 
-    let mnemonic = "cmpnd_a";
-    let members = (
-        ins
-        "int":$widthOfSomething,
-        "SimpleTypeA": $exampleTdType,
-        "SomeCppStruct": $exampleCppType
-    );
-
-    let genVerifyInvariantsDecl = 1;
+  let genVerifyInvariantsDecl = 1;
 
 // DECL-LABEL: class CompoundAType: public Type
 // DECL: static LogicalResult verifyConstructionInvariants(Location loc, int widthOfSomething, SimpleTypeA exampleTdType, SomeCppStruct exampleCppType);
@@ -59,6 +61,11 @@ def B_CompoundTypeA : TestType<"CompoundA"> {
 
 def C_IndexType : TestType<"Index"> {
     let mnemonic = "index";
+
+    let members = (
+      ins
+      StringRefMember<"Label for index">:$label
+    );
 
 // DECL-LABEL: class IndexType: public Type
 // DECL: static Type parse(mlir::MLIRContext* ctxt, mlir::DialectAsmParser& parser);
@@ -86,7 +93,7 @@ def E_IntegerType : TestType<"Integer"> {
     let members = (
         ins
         "SignednessSemantics":$signedness, 
-        "unsigned":$width
+        TypeMember<"unsigned", "Bitwdith of integer">:$width
     );
 
 // DECL-LABEL: IntegerType: public Type

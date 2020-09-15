@@ -29,6 +29,24 @@ StringRef TypeDef::getCppClassName() const {
   return def->getValueAsString("cppClassName");
 }
 
+bool TypeDef::hasDescription() const {
+  const auto *s = def->getValue("description");
+  return s != nullptr && isa<llvm::StringInit>(s->getValue());
+}
+
+StringRef TypeDef::getDescription() const {
+  return def->getValueAsString("description");
+}
+
+bool TypeDef::hasSummary() const {
+  const auto *s = def->getValue("summary");
+  return s != nullptr && isa<llvm::StringInit>(s->getValue());
+}
+
+StringRef TypeDef::getSummary() const {
+  return def->getValueAsString("summary");
+}
+
 StringRef TypeDef::getStorageClassName() const {
   return def->getValueAsString("storageClass");
 }
@@ -131,6 +149,31 @@ StringRef TypeMember::getCppType() const {
     return stringType->getValue();
   } else if (auto *typeMember = dyn_cast<llvm::DefInit>(memberType)) {
     return typeMember->getDef()->getValueAsString("cppType");
+  } else {
+    llvm::errs() << "Members DAG arguments must be either strings or defs "
+                    "which inherit from TypeMember\n";
+    return StringRef();
+  }
+}
+llvm::Optional<StringRef> TypeMember::getDescription() const {
+
+  auto *memberType = def->getArg(num);
+  if (auto *typeMember = dyn_cast<llvm::DefInit>(memberType)) {
+    const auto *desc = typeMember->getDef()->getValue("description");
+    if (llvm::StringInit *ci = dyn_cast<llvm::StringInit>(desc->getValue()))
+      return ci->getValue();
+  }
+  return llvm::Optional<StringRef>();
+}
+StringRef TypeMember::getSyntax() const {
+  auto *memberType = def->getArg(num);
+  if (auto *stringType = dyn_cast<llvm::StringInit>(memberType)) {
+    return stringType->getValue();
+  } else if (auto *typeMember = dyn_cast<llvm::DefInit>(memberType)) {
+    const auto *syntax = typeMember->getDef()->getValue("syntax");
+    if (syntax != nullptr && isa<llvm::StringInit>(syntax->getValue()))
+      return dyn_cast<llvm::StringInit>(syntax->getValue())->getValue();
+    return getCppType();
   } else {
     llvm::errs() << "Members DAG arguments must be either strings or defs "
                     "which inherit from TypeMember\n";

@@ -5,7 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// TypeDef wrapper to simplify using TableGen Record defining a MLIR dialect.
+// TypeDef wrapper to simplify using TableGen Record defining a MLIR type.
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,6 +39,12 @@ public:
 
   // Returns the name of this TypeDef record
   StringRef getName() const;
+
+  // Query functions for the documentation of the operator.
+  bool hasDescription() const;
+  StringRef getDescription() const;
+  bool hasSummary() const;
+  StringRef getSummary() const;
 
   // Returns the name of the C++ class to generate
   StringRef getCppClassName() const;
@@ -110,6 +116,8 @@ public:
   StringRef getName() const;
   llvm::Optional<StringRef> getAllocator() const;
   StringRef getCppType() const;
+  llvm::Optional<StringRef> getDescription() const;
+  StringRef getSyntax() const;
 
 private:
   const llvm::DagInit *def;
