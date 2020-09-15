@@ -26,10 +26,3 @@ uint64_t llvm::hashing::detail::fixed_seed_override = 0;
 void llvm::set_fixed_execution_hash_seed(uint64_t fixed_value) {
   hashing::detail::fixed_seed_override = fixed_value;
 }
-
-hash_code llvm::hash_value(float value) {
-  return hash_value(*(uint32_t *)&value);
-}
-hash_code llvm::hash_value(double value) {
-  return hash_value(*(uint64_t *)&value);
-}

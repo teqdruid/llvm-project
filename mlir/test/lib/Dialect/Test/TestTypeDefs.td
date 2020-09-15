@@ -28,8 +28,6 @@ def CompoundTypeA : Test_Type<"CompoundA"> {
         ins
         "int":$widthOfSomething,
         "SimpleAType": $exampleTdType,
-        "float": $f,
-        "double": $d,
         ArrayRefMember<"int", "">: $arrayOfInts,
         ArrayRefMember<"Type", "An example of an array of types as a type parameter">: $arrayOfTypes,
         "StringRef": $simpleString,
