@@ -2347,4 +2347,90 @@ def location;
 // so to replace the matched DAG with an existing SSA value.
 def replaceWithValue;
 
+
+//===----------------------------------------------------------------------===//
+// Data type generation
+//===----------------------------------------------------------------------===//
+
+// Define a new type belonging to a dialect and called 'name'
+class TypeDef<Dialect dialect, string name> {
+  Dialect owningDialect = dialect;
+  string cppClassName = name # "Type";
+
+  // Short summary of the type
+  string summary = ?;
+  // The longer description of this type
+  string description = ?;
+
+  // Name of storage class to generate or use
+  string storageClass = name # "TypeStorage";
+  // Namespace (withing dialect c++ namespace) in which the storage class resides
+  string storageNamespace = "detail";
+  // Should we generate the storage class? (Or use an existing one?)
+  bit genStorageClass = 1;
+  // Should we generate the storage class constructor?
+  bit hasStorageCustomConstructor = 0;
+
+  // This is the list of fields in the storage class (and list of parameters
+  // in the creation functions). If empty, don't use or generate a storage class
+  dag members = (ins);
+
+  // Use the lowercased name as the keyword for parsing/printing. Specify only
+  // if you want tblgen to automatically generate the printer/parser for this
+  // type.
+  string mnemonic = ?;
+
+  // If null, generate just the declarations.
+  // If an empty code block, generate print/parser methods only if 'mnemonic' is specified
+  // If a non-empty code block, just use that code as the definition code.
+  code printer = [{}];
+  code parser = [{}];
+
+  // If set, generate accessors for each Type member
+  bit genAccessors = 1;
+  // Generate the verifyConstructionInvariants declaration and getChecked method
+  bit genVerifyInvariantsDecl = 0;
+  // Extra code to include in the class declaration
+  code extraDecls = [{}];
+}
+
+// 'Members' should be subclasses of this or simple strings (which is a
+// shorthand for TypeMember<"C++Type">)
+class TypeMember<string type, string desc> {
+  code allocator = ?;
+  string cppType = type;
+  string description = desc;
+  string syntax = ?;
+}
+
+// For StringRefs, which require allocation
+class StringRefMember<string desc> : TypeMember<"::llvm::StringRef", desc> {
+  let allocator = [{$_dst = $_allocator.copyInto($_self);}];
+  let syntax = "\"foo bar\"";
+}
+
+// For standard ArrayRefs, which require allocation
+class ArrayRefMember<string arrayOf, string desc> : TypeMember<"::llvm::ArrayRef<" # arrayOf # ">", desc> {
+  let allocator = [{$_dst = $_allocator.copyInto($_self);}];
+  let syntax = "[ " # arrayOf # ", " # arrayOf # ", ... ]";
+}
+
+// For classes which require allocation and have their own allocateInto method
+class SelfAllocationMember<string type, string desc> : TypeMember<type, desc> {
+  let allocator = [{$_dst = $_self.allocateInto($_allocator);}];
+}
+
+// For ArrayRefs which contain things which allocate themselves
+class ArrayRefOfSelfAllocationMember<string arrayOf, string desc> : TypeMember<"::llvm::ArrayRef<" # arrayOf # ">", desc> {
+  let allocator = [{
+    llvm::SmallVector<}] # arrayOf # [{, 4> tmpFields($_self.size());
+    for (size_t i=0; i<$_self.size(); i++) {
+      tmpFields[i] = $_self[i].allocateInto($_allocator);
+    }
+    $_dst = $_allocator.copyInto(ArrayRef<}] # arrayOf # [{>(tmpFields));
+    }];
+  let syntax = "[ " # arrayOf # ", " # arrayOf # ", ... ]";
+}
+
+
 #endif // OP_BASE
