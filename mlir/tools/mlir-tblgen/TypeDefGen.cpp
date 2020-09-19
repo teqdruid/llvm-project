@@ -132,6 +132,7 @@ public:
 /// {0}: The name of the typeDef class.
 /// {1}: The typeDef storage class namespace.
 /// {2}: The storage class name
+/// {3}: The list of parameters with types
 static const char *const typeDefDeclParametricBeginStr = R"(
   namespace {1} {
     struct {2};
@@ -141,6 +142,7 @@ static const char *const typeDefDeclParametricBeginStr = R"(
 public:
     /// Inherit some necessary constructors from 'TypeBase'.
     using Base::Base;
+
 )";
 
 // snippet for print/parse
@@ -176,7 +178,11 @@ static void emitTypeDefDecl(TypeDef &typeDef, raw_ostream &os) {
   if (llvm::Optional<StringRef> extraDecl = typeDef.getExtraDecls())
     os << *extraDecl;
 
+  // Get the CppType1 param1, CppType2 param2 argument list
   std::string parameterParameters = constructParameterParameters(typeDef, true);
+
+  os << llvm::formatv("  static {0} get(::mlir::MLIRContext* ctxt{1});\n",
+                      typeDef.getCppClassName(), parameterParameters);
 
   // parse/print
   os << typeDefParsePrint;
@@ -485,6 +491,16 @@ static mlir::LogicalResult emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
     if (mlir::failed(emitStorageClass(typeDef, os)))
       return mlir::failure();
 
+  std::string paramFuncParams = constructParameterParameters(typeDef, true);
+  SmallVector<StringRef, 5> paramNames;
+  paramNames.push_back("");
+  typeDef.getParametersAs<StringRef>(
+      paramNames, [](TypeParameter param) { return param.getName(); });
+  os << llvm::formatv("{0} {0}::get(::mlir::MLIRContext* ctxt{1}) {{\n"
+                      "  return Base::get(ctxt{2});\n"
+                      "}\n",
+                      typeDef.getCppClassName(), paramFuncParams,
+                      llvm::join(paramNames, ","));
   // emit the accessors
   if (typeDef.genAccessors()) {
     for (auto parameter : parameters) {

@@ -2431,9 +2431,9 @@ class SelfAllocationParameter<string type, string desc> : TypeParameter<type, de
 // For ArrayRefs which contain things which allocate themselves
 class ArrayRefOfSelfAllocationParameter<string arrayOf, string desc> : TypeParameter<"::llvm::ArrayRef<" # arrayOf # ">", desc> {
   let allocator = [{
-    llvm::SmallVector<}] # arrayOf # [{, 4> tmpFields($_self.size());
+    llvm::SmallVector<}] # arrayOf # [{, 4> tmpFields;
     for (size_t i = 0; i < $_self.size(); i++) {
-      tmpFields[i] = $_self[i].allocateInto($_allocator);
+      tmpFields.push_back($_self[i].allocateInto($_allocator));
     }
     $_dst = $_allocator.copyInto(ArrayRef<}] # arrayOf # [{>(tmpFields));
     }];
