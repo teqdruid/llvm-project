@@ -8,8 +8,8 @@ func @simpleA(%A : !test.smpla) -> () {
   return
 }
 
-// CHECK: @compoundA(%arg0: !test.cmpnd_a<1, !test.smpla, [5, 6], [i1, i2], "example str", ["array", "of", "strings"]>)
-func @compoundA(%A : !test.cmpnd_a<1, !test.smpla, [5, 6], [i1, i2], "example str", ["array","of","strings"]>) -> () {
+// CHECK: @compoundA(%arg0: !test.cmpnd_a<1, !test.smpla, [5, 6]>)
+func @compoundA(%A : !test.cmpnd_a<1, !test.smpla, [5, 6]>)-> () {
   return
 }
 

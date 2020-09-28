@@ -32,8 +32,6 @@ class TestType<string name> : TypeDef<Test_Dialect, name> { }
 
 def A_SimpleTypeA : TestType<"SimpleA"> {
 // DECL: class SimpleAType: public ::mlir::Type
-// DECL: static ::mlir::Type parse(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& parser);
-// DECL: void print(::mlir::DialectAsmPrinter& printer) const;
 }
 
 // A more complex parameterized type
@@ -55,6 +53,8 @@ def B_CompoundTypeA : TestType<"CompoundA"> {
 // DECL: static ::mlir::LogicalResult verifyConstructionInvariants(Location loc, int widthOfSomething, ::mlir::test::SimpleTypeA exampleTdType, SomeCppStruct exampleCppType, ::llvm::ArrayRef<int> dims);
 // DECL: static CompoundAType getChecked(Location loc, int widthOfSomething, ::mlir::test::SimpleTypeA exampleTdType, SomeCppStruct exampleCppType, ::llvm::ArrayRef<int> dims);
 // DECL: static ::llvm::StringRef getMnemonic() { return "cmpnd_a"; }
+// DECL: static ::mlir::Type parse(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& parser);
+// DECL: void print(::mlir::DialectAsmPrinter& printer) const;
 // DECL: int getWidthOfSomething() const;
 // DECL: ::mlir::test::SimpleTypeA getExampleTdType() const;
 // DECL: SomeCppStruct getExampleCppType() const;
@@ -69,9 +69,9 @@ def C_IndexType : TestType<"Index"> {
     );
 
 // DECL-LABEL: class IndexType: public ::mlir::Type
+// DECL: static ::llvm::StringRef getMnemonic() { return "index"; }
 // DECL: static ::mlir::Type parse(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& parser);
 // DECL: void print(::mlir::DialectAsmPrinter& printer) const;
-// DECL: static ::llvm::StringRef getMnemonic() { return "index"; }
 }
 
 def D_SingleParameterType : TestType<"SingleParameter"> {
@@ -82,13 +82,9 @@ def D_SingleParameterType : TestType<"SingleParameter"> {
 // DECL-LABEL: struct SingleParameterTypeStorage;
 // DECL-LABEL: class SingleParameterType
 // DECL-NEXT:                   detail::SingleParameterTypeStorage
-// DECL: static ::mlir::Type parse(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& parser);
-// DECL: void print(::mlir::DialectAsmPrinter& printer) const;
 }
 
 def E_IntegerType : TestType<"Integer"> {
-    let parser = [{}];
-    let printer = [{}];
     let mnemonic = "int";
     let genVerifyInvariantsDecl = 1;
     let parameters = (

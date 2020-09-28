@@ -2380,15 +2380,16 @@ class TypeDef<Dialect owningdialect, string name> {
   dag parameters = (ins);
 
   // Use the lowercased name as the keyword for parsing/printing. Specify only
-  // if you want tblgen to automatically generate the printer/parser for this
+  // if you want tblgen to generate decls and/or defs of printer/parser for this
   // type.
   string mnemonic = ?;
 
-  // If null, generate just the declarations.
-  // If an empty code block, generate print/parser methods only if 'mnemonic' is specified.
-  // If a non-empty code block, just use that code as the definition code.
-  code printer = [{}];
-  code parser = [{}];
+  // If 'mnemonic' specified,
+  //   If null, generate just the declarations.
+  //   Error if an empty code block.
+  //   If a non-empty code block, just use that code as the definition code.
+  code printer = ?;
+  code parser = ?;
 
   // If set, generate accessors for each Type parameter.
   bit genAccessors = 1;
@@ -2414,13 +2415,11 @@ class TypeParameter<string type, string desc> {
 // For StringRefs, which require allocation
 class StringRefParameter<string desc> : TypeParameter<"::llvm::StringRef", desc> {
   let allocator = [{$_dst = $_allocator.copyInto($_self);}];
-  let syntax = "\"foo bar\"";
 }
 
 // For standard ArrayRefs, which require allocation
 class ArrayRefParameter<string arrayOf, string desc> : TypeParameter<"::llvm::ArrayRef<" # arrayOf # ">", desc> {
   let allocator = [{$_dst = $_allocator.copyInto($_self);}];
-  let syntax = "[ " # arrayOf # ", " # arrayOf # ", ... ]";
 }
 
 // For classes which require allocation and have their own allocateInto method
@@ -2437,7 +2436,6 @@ class ArrayRefOfSelfAllocationParameter<string arrayOf, string desc> : TypeParam
     }
     $_dst = $_allocator.copyInto(ArrayRef<}] # arrayOf # [{>(tmpFields));
     }];
-  let syntax = "[ " # arrayOf # ", " # arrayOf # ", ... ]";
 }
 
 

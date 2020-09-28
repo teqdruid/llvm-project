@@ -14,59 +14,89 @@
 #include "TestTypes.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Types.h"
-#include "mlir/TableGen/TypeDefGenHelpers.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 namespace mlir {
-namespace tblgen {
-namespace parser_helpers {
 
 // Custom parser for SignednessSemantics
-template <>
-struct Parse<TestIntegerType::SignednessSemantics> {
-  static ParseResult go(MLIRContext *ctxt, DialectAsmParser &parser,
-                        StringRef parameterName,
-                        TestIntegerType::SignednessSemantics &result) {
-    StringRef signStr;
-    auto loc = parser.getCurrentLocation();
-    if (parser.parseKeyword(&signStr))
-      return mlir::failure();
-    if (signStr.compare_lower("u") || signStr.compare_lower("unsigned"))
-      result = TestIntegerType::SignednessSemantics::Unsigned;
-    else if (signStr.compare_lower("s") || signStr.compare_lower("signed"))
-      result = TestIntegerType::SignednessSemantics::Signed;
-    else if (signStr.compare_lower("n") || signStr.compare_lower("none"))
-      result = TestIntegerType::SignednessSemantics::Signless;
-    else {
-      parser.emitError(loc, "expected signed, unsigned, or none");
-      return mlir::failure();
-    }
-    return mlir::success();
+static ParseResult Parse(DialectAsmParser &parser,
+                         TestIntegerType::SignednessSemantics &result) {
+  StringRef signStr;
+  auto loc = parser.getCurrentLocation();
+  if (parser.parseKeyword(&signStr))
+    return mlir::failure();
+  if (signStr.compare_lower("u") || signStr.compare_lower("unsigned"))
+    result = TestIntegerType::SignednessSemantics::Unsigned;
+  else if (signStr.compare_lower("s") || signStr.compare_lower("signed"))
+    result = TestIntegerType::SignednessSemantics::Signed;
+  else if (signStr.compare_lower("n") || signStr.compare_lower("none"))
+    result = TestIntegerType::SignednessSemantics::Signless;
+  else {
+    parser.emitError(loc, "expected signed, unsigned, or none");
+    return mlir::failure();
   }
-};
+  return mlir::success();
+}
 
 // Custom printer for SignednessSemantics
-template <>
-struct Print<TestIntegerType::SignednessSemantics> {
-  static void go(DialectAsmPrinter &printer,
-                 const TestIntegerType::SignednessSemantics &ss) {
-    switch (ss) {
-    case TestIntegerType::SignednessSemantics::Unsigned:
-      printer << "unsigned";
-      break;
-    case TestIntegerType::SignednessSemantics::Signed:
-      printer << "signed";
-      break;
-    case TestIntegerType::SignednessSemantics::Signless:
-      printer << "none";
-      break;
-    }
+static void Print(DialectAsmPrinter &printer,
+                  const TestIntegerType::SignednessSemantics &ss) {
+  switch (ss) {
+  case TestIntegerType::SignednessSemantics::Unsigned:
+    printer << "unsigned";
+    break;
+  case TestIntegerType::SignednessSemantics::Signed:
+    printer << "signed";
+    break;
+  case TestIntegerType::SignednessSemantics::Signless:
+    printer << "none";
+    break;
   }
-};
+}
 
-} // namespace parser_helpers
-} // namespace tblgen
+Type CompoundAType::parse(::mlir::MLIRContext *ctxt,
+                          ::mlir::DialectAsmParser &parser) {
+  int widthOfSomething;
+  Type oneType;
+  SmallVector<int, 4> arrayOfInts;
+  if (parser.parseLess())
+    return Type();
+  if (parser.parseInteger(widthOfSomething))
+    return Type();
+  if (parser.parseComma())
+    return Type();
+  if (parser.parseType(oneType))
+    return Type();
+  if (parser.parseComma())
+    return Type();
+
+  if (parser.parseLSquare())
+    return Type();
+  int i;
+  while (!*parser.parseOptionalInteger(i)) {
+    arrayOfInts.push_back(i);
+    if (parser.parseOptionalComma())
+      break;
+  }
+  if (parser.parseRSquare())
+    return Type();
+  if (parser.parseGreater())
+    return Type();
+
+  return get(ctxt, widthOfSomething, oneType, arrayOfInts);
+}
+void CompoundAType::print(::mlir::DialectAsmPrinter &printer) const {
+  printer << "cmpnd_a<" << getWidthOfSomething() << ", " << getOneType()
+          << ", [";
+  auto intArray = getArrayOfInts();
+  for (size_t idx = 0; idx < intArray.size(); idx++) {
+    printer << intArray[idx];
+    if (idx < intArray.size() - 1)
+      printer << ", ";
+  }
+  printer << "]>";
+}
 
 bool operator==(const FieldInfo &a, const FieldInfo &b) {
   return a.name == b.name && a.type == b.type;
@@ -86,7 +116,6 @@ LogicalResult TestIntegerType::verifyConstructionInvariants(
   return mlir::success();
 }
 
-struct TestType;
 } // end namespace mlir
 
 #define GET_TYPEDEF_CLASSES

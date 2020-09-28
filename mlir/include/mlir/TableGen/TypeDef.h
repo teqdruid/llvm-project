@@ -69,14 +69,12 @@ public:
   // supposed to auto-generate them
   llvm::Optional<StringRef> getMnemonic() const;
 
-  // Returns the code to use as the types printer method. If empty, generate
-  // just the declaration. If null and mnemonic is non-null, generate the
-  // declaration and definition.
+  // Returns the code to use as the types printer method. If not specified,
+  // return a non-value. Otherwise, return the contents of that code block.
   llvm::Optional<StringRef> getPrinterCode() const;
 
-  // Returns the code to use as the types parser method. If empty, generate
-  // just the declaration. If null and mnemonic is non-null, generate the
-  // declaration and definition.
+  // Returns the code to use as the types parser method. If not specified,
+  // return a non-value. Otherwise, return the contents of that code block.
   llvm::Optional<StringRef> getParserCode() const;
 
   // Should we generate accessors based on the types parameters?
@@ -88,6 +86,9 @@ public:
 
   // Returns the dialects extra class declaration code.
   llvm::Optional<StringRef> getExtraDecls() const;
+
+  // Get the code location (for error printing)
+  llvm::ArrayRef<llvm::SMLoc> getLoc() const;
 
   // Returns whether two TypeDefs are equal by checking the equality of the
   // underlying record.

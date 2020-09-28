@@ -90,12 +90,11 @@ bool TypeDef::genAccessors() const {
 bool TypeDef::genVerifyInvariantsDecl() const {
   return def->getValueAsBit("genVerifyInvariantsDecl");
 }
-
 llvm::Optional<StringRef> TypeDef::getExtraDecls() const {
   auto value = def->getValueAsString("extraClassDeclaration");
   return value.empty() ? llvm::Optional<StringRef>() : value;
 }
-
+llvm::ArrayRef<llvm::SMLoc> TypeDef::getLoc() const { return def->getLoc(); }
 bool TypeDef::operator==(const TypeDef &other) const {
   return def == other.def;
 }

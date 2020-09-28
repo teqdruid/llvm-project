@@ -16,6 +16,9 @@ class Test_Type<string name> : TypeDef<Test_Dialect, name> { }
 
 def SimpleTypeA : Test_Type<"SimpleA"> {
     let mnemonic = "smpla";
+
+    let printer = [{ $_printer << "smpla"; }];
+    let parser = [{ return get(ctxt); }];
 }
 
 // A more complex parameterized type
@@ -27,11 +30,8 @@ def CompoundTypeA : Test_Type<"CompoundA"> {
     let parameters = (
         ins
         "int":$widthOfSomething,
-        "::mlir::SimpleAType": $exampleTdType,
-        ArrayRefParameter<"int", "">: $arrayOfInts,
-        ArrayRefParameter<"Type", "An example of an array of types as a type parameter">: $arrayOfTypes,
-        "::llvm::StringRef": $simpleString,
-        ArrayRefParameter<"::llvm::StringRef", "">: $arrayOfStrings
+        "::mlir::Type":$oneType,
+        ArrayRefParameter<"int", "An example of an array of ints">: $arrayOfInts
     );
 
     let extraClassDeclaration = [{
@@ -40,15 +40,32 @@ def CompoundTypeA : Test_Type<"CompoundA"> {
 }
 
 def IntegerType : Test_Type<"TestInteger"> {
-    let mnemonic = "int";
-    let genVerifyInvariantsDecl = 1;
-    let parameters = (
-        ins
-        "::mlir::TestIntegerType::SignednessSemantics":$signedness,
-        "unsigned":$width
-    );
+  let mnemonic = "int";
+  let genVerifyInvariantsDecl = 1;
+  let parameters = (
+      ins
+      "::mlir::TestIntegerType::SignednessSemantics":$signedness,
+      "unsigned":$width
+  );
 
-    let extraClassDeclaration = [{
+  let printer = [{
+    $_printer << "int<";
+    Print($_printer, getImpl()->signedness);
+    $_printer << ", " << getImpl()->width << ">";
+  }];
+
+  let parser = [{
+    if (parser.parseLess()) return Type();
+    SignednessSemantics signedness;
+    if (Parse($_parser, signedness)) return mlir::Type();
+    if ($_parser.parseComma()) return Type();
+    int width;
+    if ($_parser.parseInteger(width)) return Type();
+    if ($_parser.parseGreater()) return Type();
+    return get(ctxt, signedness, width);   
+  }];
+
+  let extraClassDeclaration = [{
   /// Signedness semantics.
   enum SignednessSemantics {
     Signless, /// No signedness semantics
@@ -69,38 +86,38 @@ def IntegerType : Test_Type<"TestInteger"> {
 }
 
 class FieldInfo_Type<string name> : Test_Type<name> {
-let parameters = (
-    ins
-    ArrayRefOfSelfAllocationParameter<"::mlir::FieldInfo", "Models struct fields">: $fields
-);
+  let parameters = (
+      ins
+      ArrayRefOfSelfAllocationParameter<"::mlir::FieldInfo", "Models struct fields">: $fields
+  );
 
-let printer = [{
-    printer << "struct" << "<";
-    for (size_t i=0; i<getImpl()->fields.size(); i++) {
-    const auto& field = getImpl()->fields[i];
-    printer << "{" << field.name << "," << field.type << "}";
-    if (i < getImpl()->fields.size() - 1)
-        printer << ",";
-    }
-    printer << ">";
-}];
+  let printer = [{
+      $_printer << "struct" << "<";
+      for (size_t i=0; i<getImpl()->fields.size(); i++) {
+      const auto& field = getImpl()->fields[i];
+      $_printer << "{" << field.name << "," << field.type << "}";
+      if (i < getImpl()->fields.size() - 1)
+          $_printer << ",";
+      }
+      $_printer << ">";
+  }];
 
-let parser = [{
-    llvm::SmallVector<FieldInfo, 4> parameters;
-    if (parser.parseLess()) return Type();
-    while (mlir::succeeded(parser.parseOptionalLBrace())) {
-        StringRef name;
-        if (parser.parseKeyword(&name)) return Type();
-        if (parser.parseComma()) return Type();
-        Type type;
-        if (parser.parseType(type)) return Type();
-        if (parser.parseRBrace()) return Type();
-        parameters.push_back(FieldInfo {name, type});
-        if (parser.parseOptionalComma()) break;
-    }
-    if (parser.parseGreater()) return Type();
-    return get(ctxt, parameters);
-}];
+  let parser = [{
+      llvm::SmallVector<FieldInfo, 4> parameters;
+      if ($_parser.parseLess()) return Type();
+      while (mlir::succeeded($_parser.parseOptionalLBrace())) {
+          StringRef name;
+          if ($_parser.parseKeyword(&name)) return Type();
+          if ($_parser.parseComma()) return Type();
+          Type type;
+          if ($_parser.parseType(type)) return Type();
+          if ($_parser.parseRBrace()) return Type();
+          parameters.push_back(FieldInfo {name, type});
+          if ($_parser.parseOptionalComma()) break;
+      }
+      if ($_parser.parseGreater()) return Type();
+      return get($_ctxt, parameters);
+  }];
 }
 
 def StructType : FieldInfo_Type<"Struct"> {
