@@ -18,7 +18,7 @@ def SimpleTypeA : Test_Type<"SimpleA"> {
     let mnemonic = "smpla";
 
     let printer = [{ $_printer << "smpla"; }];
-    let parser = [{ return get(ctxt); }];
+    let parser = [{ return get($_ctxt); }];
 }
 
 // A more complex parameterized type
@@ -62,7 +62,7 @@ def IntegerType : Test_Type<"TestInteger"> {
     int width;
     if ($_parser.parseInteger(width)) return Type();
     if ($_parser.parseGreater()) return Type();
-    return get(ctxt, signedness, width);   
+    return get(ctxt, signedness, width);
   }];
 
   let extraClassDeclaration = [{

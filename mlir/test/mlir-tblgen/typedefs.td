@@ -89,7 +89,7 @@ def E_IntegerType : TestType<"Integer"> {
     let genVerifyInvariantsDecl = 1;
     let parameters = (
         ins
-        "SignednessSemantics":$signedness, 
+        "SignednessSemantics":$signedness,
         TypeParameter<"unsigned", "Bitwdith of integer">:$width
     );
 
