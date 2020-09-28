@@ -2279,34 +2279,6 @@ Record::getValueAsOptionalCode(StringRef FieldName) const {
                   "Record `" + getName() + "', field `" + FieldName +
                       "' exists but does not have a code initializer!");
 }
-llvm::Optional<StringRef>
-Record::getValueAsOptionalString(StringRef FieldName) const {
-  const RecordVal *R = getValue(FieldName);
-  if (!R || !R->getValue())
-    return llvm::Optional<StringRef>();
-  if (isa<UnsetInit>(R->getValue()))
-    return llvm::Optional<StringRef>();
-
-  if (StringInit *SI = dyn_cast<StringInit>(R->getValue()))
-    return SI->getValue();
-  if (CodeInit *CI = dyn_cast<CodeInit>(R->getValue()))
-    return CI->getValue();
-
-  PrintFatalError(getLoc(), "Record `" + getName() + "', field `" + FieldName +
-                                "' does not have a string initializer!");
-}
-llvm::Optional<StringRef>
-Record::getValueAsOptionalCode(StringRef FieldName) const {
-  const RecordVal *R = getValue(FieldName);
-  if (!R || !R->getValue())
-    return llvm::Optional<StringRef>();
-
-  if (CodeInit *CI = dyn_cast<CodeInit>(R->getValue()))
-    return CI->getValue();
-
-  PrintFatalError(getLoc(), "Record `" + getName() + "', field `" + FieldName +
-                                "' does not have a code initializer!");
-}
 
 BitsInit *Record::getValueAsBitsInit(StringRef FieldName) const {
   const RecordVal *R = getValue(FieldName);
