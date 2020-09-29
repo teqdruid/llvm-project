@@ -130,7 +130,7 @@ private:
 template <typename T>
 void TypeDef::getParametersAs(SmallVectorImpl<T> &parameters,
                               llvm::function_ref<T(TypeParameter)> map) const {
-  auto parametersDag = def->getValueAsDag("parameters");
+  auto *parametersDag = def->getValueAsDag("parameters");
   if (parametersDag != nullptr)
     for (unsigned i = 0; i < parametersDag->getNumArgs(); i++)
       parameters.push_back(map(TypeParameter(parametersDag, i)));
