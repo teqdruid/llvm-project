@@ -172,7 +172,7 @@ static void emitTypeAssemblyFormat(TypeDef td, raw_ostream &os) {
   } else {
     os << "\nSyntax:\n\n```\n!" << td.getDialect().getName() << "."
        << td.getMnemonic() << "<\n";
-    for (auto it = parameters.begin(); it < parameters.end(); it++) {
+    for (auto *it = parameters.begin(); it < parameters.end(); it++) {
       os << "  " << it->getSyntax();
       if (it < parameters.end() - 1)
         os << ",";

@@ -19,7 +19,7 @@ using namespace mlir;
 using namespace mlir::tblgen;
 
 Dialect TypeDef::getDialect() const {
-  auto dialectDef =
+  auto *dialectDef =
       dyn_cast<llvm::DefInit>(def->getValue("dialect")->getValue());
   if (dialectDef == nullptr)
     return Dialect(nullptr);

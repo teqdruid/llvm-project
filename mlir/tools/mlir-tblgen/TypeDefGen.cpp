@@ -184,8 +184,6 @@ static void emitTypeDefDecl(TypeDef &typeDef, raw_ostream &os) {
   os << llvm::formatv("  static {0} get(::mlir::MLIRContext* ctxt{1});\n",
                       typeDef.getCppClassName(), parameterParameters);
 
-
-
   // verify invariants
   if (typeDef.genVerifyInvariantsDecl())
     os << llvm::formatv(typeDefDeclVerifyStr, parameterParameters,
@@ -445,7 +443,7 @@ static mlir::LogicalResult emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
       // Both the mnenomic and printerCode must be defined (for parity with
       // parserCode)
       os << "void " << typeDef.getCppClassName()
-        << "::print(mlir::DialectAsmPrinter& printer) const {\n";
+         << "::print(mlir::DialectAsmPrinter& printer) const {\n";
       if (*printerCode == "") {
         // if no code specified, emit error
         llvm::PrintError(
@@ -467,7 +465,7 @@ static mlir::LogicalResult emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
     if (parserCode) {
       // The mnenomic must be defined so the dispatcher knows how to dispatch
       os << "::mlir::Type " << typeDef.getCppClassName()
-        << "::parse(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& "
+         << "::parse(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& "
             "parser) "
             "{\n";
       if (*parserCode == "") {
@@ -478,7 +476,9 @@ static mlir::LogicalResult emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
                 ": parser (if specified) must have non-empty code");
         return mlir::failure();
       } else {
-        auto fmtCtxt = FmtContext().addSubst("_parser", "parser").addSubst("_ctxt", "ctxt");
+        auto fmtCtxt = FmtContext()
+                           .addSubst("_parser", "parser")
+                           .addSubst("_ctxt", "ctxt");
         auto fmtObj = tgfmt(*parserCode, &fmtCtxt);
         fmtObj.format(os);
         os << "\n";
