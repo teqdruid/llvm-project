@@ -20,8 +20,9 @@
 using namespace mlir;
 
 // Custom parser for SignednessSemantics.
-static ParseResult Parse(DialectAsmParser &parser,
-                         TestIntegerType::SignednessSemantics &result) {
+static ParseResult
+parseSignedness(DialectAsmParser &parser,
+                TestIntegerType::SignednessSemantics &result) {
   StringRef signStr;
   auto loc = parser.getCurrentLocation();
   if (parser.parseKeyword(&signStr))
@@ -33,15 +34,14 @@ static ParseResult Parse(DialectAsmParser &parser,
   else if (signStr.compare_lower("n") || signStr.compare_lower("none"))
     result = TestIntegerType::SignednessSemantics::Signless;
   else {
-    parser.emitError(loc, "expected signed, unsigned, or none");
-    return failure();
+    return parser.emitError(loc, "expected signed, unsigned, or none");
   }
   return success();
 }
 
 // Custom printer for SignednessSemantics.
-static void Print(DialectAsmPrinter &printer,
-                  const TestIntegerType::SignednessSemantics &ss) {
+static void printSignedness(DialectAsmPrinter &printer,
+                            const TestIntegerType::SignednessSemantics &ss) {
   switch (ss) {
   case TestIntegerType::SignednessSemantics::Unsigned:
     printer << "unsigned";
@@ -76,7 +76,7 @@ Type CompoundAType::parse(MLIRContext *ctxt, DialectAsmParser &parser) {
 
   return get(ctxt, widthOfSomething, oneType, arrayOfInts);
 }
-void CompoundAType::print(::mlir::DialectAsmPrinter &printer) const {
+void CompoundAType::print(DialectAsmPrinter &printer) const {
   printer << "cmpnd_a<" << getWidthOfSomething() << ", " << getOneType()
           << ", [";
   auto intArray = getArrayOfInts();
@@ -93,7 +93,7 @@ static bool operator==(const FieldInfo &a, const FieldInfo &b) {
 }
 
 // FieldInfo is used as part of a parameter, so a hash will be computed.
-static llvm::hash_code hash_value(const FieldInfo &fi) {
+static llvm::hash_code hash_value(const FieldInfo &fi) { // NOLINT
   return llvm::hash_combine(fi.name, fi.type);
 }
 
@@ -101,12 +101,11 @@ static llvm::hash_code hash_value(const FieldInfo &fi) {
 
 // Example type validity checker.
 LogicalResult TestIntegerType::verifyConstructionInvariants(
-    mlir::Location loc, mlir::TestIntegerType::SignednessSemantics ss,
-    unsigned int width) {
+    Location loc, TestIntegerType::SignednessSemantics ss, unsigned int width) {
 
   if (width > 8)
-    return mlir::failure();
-  return mlir::success();
+    return failure();
+  return success();
 }
 
 #define GET_TYPEDEF_CLASSES

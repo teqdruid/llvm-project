@@ -46,7 +46,7 @@ static void findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
     if (defs.empty())
       return;
 
-    llvm::SmallSet<mlir::tblgen::Dialect, 4> dialects;
+    llvm::SmallSet<Dialect, 4> dialects;
     for (auto typeDef : defs)
       dialects.insert(typeDef.getDialect());
     if (dialects.size() != 1)
@@ -194,7 +194,7 @@ static void emitTypeDefDecl(TypeDef &typeDef, raw_ostream &os) {
     SmallVector<TypeParameter, 4> parameters;
     typeDef.getParameters(parameters);
 
-    for (auto &parameter : parameters) {
+    for (TypeParameter &parameter : parameters) {
       SmallString<16> name = parameter.getName();
       name[0] = llvm::toUpper(name[0]);
       os << llvm::formatv("    {0} get{1}() const;\n", parameter.getCppType(),
@@ -400,7 +400,7 @@ void emitParserPrinter(TypeDef typeDef, raw_ostream &os) {
     // Both the mnenomic and printerCode must be defined (for parity with
     // parserCode).
     os << "void " << typeDef.getCppClassName()
-       << "::print(mlir::DialectAsmPrinter& printer) const {\n";
+       << "::print(::mlir::DialectAsmPrinter& printer) const {\n";
     if (*printerCode == "") {
       // If no code specified, emit error.
       llvm::PrintFatalError(
@@ -450,7 +450,7 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
   os << llvm::formatv("{0} {0}::get(::mlir::MLIRContext* ctxt{1}) {{\n"
                       "  return Base::get(ctxt",
                       typeDef.getCppClassName(), paramFuncParams);
-  for (auto &param : parameters)
+  for (TypeParameter &param : parameters)
     os << ", " << param.getName();
   os << ");\n}\n";
 
@@ -497,7 +497,7 @@ static void emitParsePrintDispatch(SmallVectorImpl<TypeDef> &typeDefs,
   // printer.
   os << "::mlir::LogicalResult generatedTypePrinter(::mlir::Type type, "
         "::mlir::DialectAsmPrinter& printer) {\n"
-     << "  ::mlir::LogicalResult found = mlir::success();\n"
+     << "  ::mlir::LogicalResult found = ::mlir::success();\n"
      << "  ::llvm::TypeSwitch<::mlir::Type>(type)\n";
   for (auto typeDef : typeDefs)
     if (typeDef.getMnemonic())

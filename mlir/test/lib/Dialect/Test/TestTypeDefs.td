@@ -62,7 +62,7 @@ def IntegerType : Test_Type<"TestInteger"> {
   // We define the printer inline.
   let printer = [{
     $_printer << "int<";
-    Print($_printer, getImpl()->signedness);
+    printSignedness($_printer, getImpl()->signedness);
     $_printer << ", " << getImpl()->width << ">";
   }];
 
@@ -70,7 +70,7 @@ def IntegerType : Test_Type<"TestInteger"> {
   let parser = [{
     if (parser.parseLess()) return Type();
     SignednessSemantics signedness;
-    if (Parse($_parser, signedness)) return mlir::Type();
+    if (parseSignedness($_parser, signedness)) return mlir::Type();
     if ($_parser.parseComma()) return Type();
     int width;
     if ($_parser.parseInteger(width)) return Type();
