@@ -15,25 +15,28 @@
 
 #include "mlir/Support/LLVM.h"
 #include "mlir/TableGen/Dialect.h"
-#include "llvm/TableGen/Record.h"
-#include <functional>
-#include <string>
+
+namespace llvm {
+class Record;
+class DagInit;
+class SMLoc;
+} // namespace llvm
 
 namespace mlir {
 namespace tblgen {
 
 class TypeParameter;
 
-// Wrapper class that contains a TableGen TypeDef's record and provides helper
-// methods for accessing them.
+/// Wrapper class that contains a TableGen TypeDef's record and provides helper
+/// methods for accessing them.
 class TypeDef {
 public:
   explicit TypeDef(const llvm::Record *def) : def(def) {}
 
-  // Get the dialect for which this type belongs
+  // Get the dialect for which this type belongs.
   Dialect getDialect() const;
 
-  // Returns the name of this TypeDef record
+  // Returns the name of this TypeDef record.
   StringRef getName() const;
 
   // Query functions for the documentation of the operator.
@@ -42,32 +45,29 @@ public:
   bool hasSummary() const;
   StringRef getSummary() const;
 
-  // Returns the name of the C++ class to generate
+  // Returns the name of the C++ class to generate.
   StringRef getCppClassName() const;
 
-  // Returns the name of the storage class for this type
+  // Returns the name of the storage class for this type.
   StringRef getStorageClassName() const;
 
-  // Returns the C++ namespace for this types storage class
+  // Returns the C++ namespace for this types storage class.
   StringRef getStorageNamespace() const;
 
-  // Returns true if we should generate the storage class
+  // Returns true if we should generate the storage class.
   bool genStorageClass() const;
 
-  // Should we generate the storage class constructor?
+  // Indicates whether or not to generate the storage class constructor.
   bool hasStorageCustomConstructor() const;
 
-  // Return the list of fields for the storage class and constructors
+  // Fill a list with this types parameters. See TypeDef in OpBase.td for
+  // documentation of parameter usage.
   void getParameters(SmallVectorImpl<TypeParameter> &) const;
+  // Return the number of type parameters
   unsigned getNumParameters() const;
 
-  // Iterate though parameters, applying a map function before adding to list
-  template <typename T>
-  void getParametersAs(SmallVectorImpl<T> &parameters,
-                       llvm::function_ref<T(TypeParameter)> map) const;
-
   // Return the keyword/mnemonic to use in the printer/parser methods if we are
-  // supposed to auto-generate them
+  // supposed to auto-generate them.
   llvm::Optional<StringRef> getMnemonic() const;
 
   // Returns the code to use as the types printer method. If not specified,
@@ -78,17 +78,18 @@ public:
   // return a non-value. Otherwise, return the contents of that code block.
   llvm::Optional<StringRef> getParserCode() const;
 
-  // Should we generate accessors based on the types parameters?
+  // Returns true if the accessors based on the types parameters should be
+  // generated.
   bool genAccessors() const;
 
   // Return true if we need to generate the verifyConstructionInvariants
-  // declaration and getChecked method
+  // declaration and getChecked method.
   bool genVerifyInvariantsDecl() const;
 
   // Returns the dialects extra class declaration code.
   llvm::Optional<StringRef> getExtraDecls() const;
 
-  // Get the code location (for error printing)
+  // Get the code location (for error printing).
   llvm::ArrayRef<llvm::SMLoc> getLoc() const;
 
   // Returns whether two TypeDefs are equal by checking the equality of the
@@ -112,30 +113,21 @@ public:
   explicit TypeParameter(const llvm::DagInit *def, unsigned num)
       : def(def), num(num) {}
 
-  // Get the parameter name
+  // Get the parameter name.
   StringRef getName() const;
-  // If specified, get the custom allocator code for this parameter
+  // If specified, get the custom allocator code for this parameter.
   llvm::Optional<StringRef> getAllocator() const;
-  // Get the C++ type of this parameter
+  // Get the C++ type of this parameter.
   StringRef getCppType() const;
-  // Get a description of this parameter for documentation purposes
+  // Get a description of this parameter for documentation purposes.
   llvm::Optional<StringRef> getDescription() const;
-  // Get the assembly syntax documentation
+  // Get the assembly syntax documentation.
   StringRef getSyntax() const;
 
 private:
   const llvm::DagInit *def;
   const unsigned num;
 };
-
-template <typename T>
-void TypeDef::getParametersAs(SmallVectorImpl<T> &parameters,
-                              llvm::function_ref<T(TypeParameter)> map) const {
-  auto *parametersDag = def->getValueAsDag("parameters");
-  if (parametersDag != nullptr)
-    for (unsigned i = 0; i < parametersDag->getNumArgs(); i++)
-      parameters.push_back(map(TypeParameter(parametersDag, i)));
-}
 
 } // end namespace tblgen
 } // end namespace mlir

@@ -17,15 +17,15 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/TypeSwitch.h"
 
-namespace mlir {
+using namespace mlir;
 
-// Custom parser for SignednessSemantics
+// Custom parser for SignednessSemantics.
 static ParseResult Parse(DialectAsmParser &parser,
                          TestIntegerType::SignednessSemantics &result) {
   StringRef signStr;
   auto loc = parser.getCurrentLocation();
   if (parser.parseKeyword(&signStr))
-    return mlir::failure();
+    return failure();
   if (signStr.compare_lower("u") || signStr.compare_lower("unsigned"))
     result = TestIntegerType::SignednessSemantics::Unsigned;
   else if (signStr.compare_lower("s") || signStr.compare_lower("signed"))
@@ -34,12 +34,12 @@ static ParseResult Parse(DialectAsmParser &parser,
     result = TestIntegerType::SignednessSemantics::Signless;
   else {
     parser.emitError(loc, "expected signed, unsigned, or none");
-    return mlir::failure();
+    return failure();
   }
-  return mlir::success();
+  return success();
 }
 
-// Custom printer for SignednessSemantics
+// Custom printer for SignednessSemantics.
 static void Print(DialectAsmPrinter &printer,
                   const TestIntegerType::SignednessSemantics &ss) {
   switch (ss) {
@@ -55,33 +55,23 @@ static void Print(DialectAsmPrinter &printer,
   }
 }
 
-Type CompoundAType::parse(::mlir::MLIRContext *ctxt,
-                          ::mlir::DialectAsmParser &parser) {
+Type CompoundAType::parse(MLIRContext *ctxt, DialectAsmParser &parser) {
   int widthOfSomething;
   Type oneType;
   SmallVector<int, 4> arrayOfInts;
-  if (parser.parseLess())
-    return Type();
-  if (parser.parseInteger(widthOfSomething))
-    return Type();
-  if (parser.parseComma())
-    return Type();
-  if (parser.parseType(oneType))
-    return Type();
-  if (parser.parseComma())
+  if (parser.parseLess() || parser.parseInteger(widthOfSomething) ||
+      parser.parseComma() || parser.parseType(oneType) || parser.parseComma() ||
+      parser.parseLSquare())
     return Type();
 
-  if (parser.parseLSquare())
-    return Type();
   int i;
   while (!*parser.parseOptionalInteger(i)) {
     arrayOfInts.push_back(i);
     if (parser.parseOptionalComma())
       break;
   }
-  if (parser.parseRSquare())
-    return Type();
-  if (parser.parseGreater())
+
+  if (parser.parseRSquare() || parser.parseGreater())
     return Type();
 
   return get(ctxt, widthOfSomething, oneType, arrayOfInts);
@@ -90,23 +80,26 @@ void CompoundAType::print(::mlir::DialectAsmPrinter &printer) const {
   printer << "cmpnd_a<" << getWidthOfSomething() << ", " << getOneType()
           << ", [";
   auto intArray = getArrayOfInts();
-  for (size_t idx = 0; idx < intArray.size(); idx++) {
-    printer << intArray[idx];
-    if (idx < intArray.size() - 1)
-      printer << ", ";
-  }
+  llvm::interleaveComma(intArray, printer);
   printer << "]>";
 }
 
-bool operator==(const FieldInfo &a, const FieldInfo &b) {
+namespace mlir {
+
+// FieldInfo is used as part of a parameter, so equality comparison is
+// compulsory.
+static bool operator==(const FieldInfo &a, const FieldInfo &b) {
   return a.name == b.name && a.type == b.type;
 }
 
-llvm::hash_code hash_value(const FieldInfo &fi) {
+// FieldInfo is used as part of a parameter, so a hash will be computed.
+static llvm::hash_code hash_value(const FieldInfo &fi) {
   return llvm::hash_combine(fi.name, fi.type);
 }
 
-// Example type validity checker
+} // namespace mlir
+
+// Example type validity checker.
 LogicalResult TestIntegerType::verifyConstructionInvariants(
     mlir::Location loc, mlir::TestIntegerType::SignednessSemantics ss,
     unsigned int width) {
@@ -115,8 +108,6 @@ LogicalResult TestIntegerType::verifyConstructionInvariants(
     return mlir::failure();
   return mlir::success();
 }
-
-} // end namespace mlir
 
 #define GET_TYPEDEF_CLASSES
 #include "TestTypeDefs.cpp.inc"

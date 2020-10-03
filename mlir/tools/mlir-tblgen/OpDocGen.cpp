@@ -169,17 +169,18 @@ static void emitTypeAssemblyFormat(TypeDef td, raw_ostream &os) {
   if (parameters.size() == 0) {
     os << "\nSyntax: `!" << td.getDialect().getName() << "." << td.getMnemonic()
        << "`\n";
-  } else {
-    os << "\nSyntax:\n\n```\n!" << td.getDialect().getName() << "."
-       << td.getMnemonic() << "<\n";
-    for (auto *it = parameters.begin(); it < parameters.end(); it++) {
-      os << "  " << it->getSyntax();
-      if (it < parameters.end() - 1)
-        os << ",";
-      os << "   # " << it->getName() << "\n";
-    }
-    os << ">\n```\n";
+    return;
   }
+
+  os << "\nSyntax:\n\n```\n!" << td.getDialect().getName() << "."
+      << td.getMnemonic() << "<\n";
+  for (auto *it = parameters.begin(), *e = parameters.end(); it < e; ++it) {
+    os << "  " << it->getSyntax();
+    if (it < parameters.end() - 1)
+      os << ",";
+    os << "   # " << it->getName() << "\n";
+  }
+  os << ">\n```\n";
 }
 
 static void emitTypeDefDoc(TypeDef td, raw_ostream &os) {
@@ -194,7 +195,7 @@ static void emitTypeDefDoc(TypeDef td, raw_ostream &os) {
   if (td.hasDescription())
     mlir::tblgen::emitDescription(td.getDescription(), os);
 
-  // Emit attributes.
+  // Emit attribute documentation.
   SmallVector<TypeParameter, 4> parameters;
   td.getParameters(parameters);
   if (parameters.size() != 0) {

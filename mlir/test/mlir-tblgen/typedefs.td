@@ -7,7 +7,7 @@ include "mlir/IR/OpBase.td"
 // DECL: #undef GET_TYPEDEF_CLASSES
 
 // DECL: ::mlir::Type generatedTypeParser(::mlir::MLIRContext* ctxt, ::mlir::DialectAsmParser& parser, ::llvm::StringRef mnenomic);
-// DECL: bool generatedTypePrinter(::mlir::Type type, ::mlir::DialectAsmPrinter& printer);
+// DECL: ::mlir::LogicalResult generatedTypePrinter(::mlir::Type type, ::mlir::DialectAsmPrinter& printer);
 
 // DEF: #ifdef GET_TYPEDEF_LIST
 // DEF: #undef GET_TYPEDEF_LIST

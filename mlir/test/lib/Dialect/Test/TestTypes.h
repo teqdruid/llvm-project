@@ -24,18 +24,17 @@
 
 namespace mlir {
 
+/// FieldInfo represents a field in the StructType data type. It is used as a
+/// parameter in TestTypeDefs.td.
 struct FieldInfo {
-public:
   StringRef name;
   Type type;
 
+  // Custom allocation called from generated constructor code
   FieldInfo allocateInto(TypeStorageAllocator &alloc) const {
     return FieldInfo{alloc.copyInto(name), type};
   }
 };
-
-bool operator==(const FieldInfo &a, const FieldInfo &b);
-llvm::hash_code hash_value(const FieldInfo &fi);
 
 } // namespace mlir
 

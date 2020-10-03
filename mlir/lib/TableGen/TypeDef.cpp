@@ -66,9 +66,8 @@ void TypeDef::getParameters(SmallVectorImpl<TypeParameter> &parameters) const {
   auto *parametersDag = def->getValueAsDag("parameters");
   if (parametersDag != nullptr) {
     size_t numParams = parametersDag->getNumArgs();
-    for (unsigned i = 0; i < numParams; i++) {
+    for (unsigned i = 0; i < numParams; i++)
       parameters.push_back(TypeParameter(parametersDag, i));
-    }
   }
 }
 unsigned TypeDef::getNumParameters() const {
@@ -107,13 +106,12 @@ StringRef TypeParameter::getName() const {
   return def->getArgName(num)->getValue();
 }
 llvm::Optional<StringRef> TypeParameter::getAllocator() const {
-  auto *parameterType = def->getArg(num);
-  if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType)) {
+  llvm::Init *parameterType = def->getArg(num);
+  if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType))
     return llvm::Optional<StringRef>();
-  }
 
   if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
-    auto *code = typeParameter->getDef()->getValue("allocator");
+    llvm::RecordVal *code = typeParameter->getDef()->getValue("allocator");
     if (llvm::CodeInit *ci = dyn_cast<llvm::CodeInit>(code->getValue()))
       return ci->getValue();
     if (isa<llvm::UnsetInit>(code->getValue()))
@@ -125,24 +123,20 @@ llvm::Optional<StringRef> TypeParameter::getAllocator() const {
             "', field `printer' does not have a code initializer!");
   }
 
-  llvm::PrintFatalError(
-      "Parameters DAG arguments must be either strings or defs "
-      "which inherit from TypeParameter\n");
+  llvm::PrintFatalError("Parameters DAG arguments must be either strings or "
+                        "defs which inherit from TypeParameter\n");
 }
 StringRef TypeParameter::getCppType() const {
   auto *parameterType = def->getArg(num);
-  if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType)) {
+  if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType))
     return stringType->getValue();
-  }
-  if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
+  if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType))
     return typeParameter->getDef()->getValueAsString("cppType");
-  }
   llvm::PrintFatalError(
       "Parameters DAG arguments must be either strings or defs "
       "which inherit from TypeParameter\n");
 }
 llvm::Optional<StringRef> TypeParameter::getDescription() const {
-
   auto *parameterType = def->getArg(num);
   if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
     const auto *desc = typeParameter->getDef()->getValue("description");
@@ -153,16 +147,14 @@ llvm::Optional<StringRef> TypeParameter::getDescription() const {
 }
 StringRef TypeParameter::getSyntax() const {
   auto *parameterType = def->getArg(num);
-  if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType)) {
+  if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType))
     return stringType->getValue();
-  } else if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
+  else if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
     const auto *syntax = typeParameter->getDef()->getValue("syntax");
     if (syntax != nullptr && isa<llvm::StringInit>(syntax->getValue()))
       return dyn_cast<llvm::StringInit>(syntax->getValue())->getValue();
     return getCppType();
-  } else {
-    llvm::errs() << "Parameters DAG arguments must be either strings or defs "
-                    "which inherit from TypeParameter\n";
-    return StringRef();
   }
+  llvm::PrintFatalError("Parameters DAG arguments must be either strings or "
+                        "defs which inherit from TypeParameter");
 }
