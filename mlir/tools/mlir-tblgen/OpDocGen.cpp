@@ -240,9 +240,8 @@ static void emitDialectDoc(const Dialect &dialect, ArrayRef<Operator> ops,
 
   if (!typeDefs.empty()) {
     os << "## Type definition\n\n";
-    for (const TypeDef &td : typeDefs) {
+    for (const TypeDef &td : typeDefs)
       emitTypeDefDoc(td, os);
-    }
   }
 }
 

@@ -90,7 +90,7 @@ public:
   llvm::Optional<StringRef> getExtraDecls() const;
 
   // Get the code location (for error printing).
-  llvm::ArrayRef<llvm::SMLoc> getLoc() const;
+  ArrayRef<llvm::SMLoc> getLoc() const;
 
   // Returns whether two TypeDefs are equal by checking the equality of the
   // underlying record.

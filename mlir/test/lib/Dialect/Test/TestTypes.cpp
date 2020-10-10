@@ -33,9 +33,8 @@ parseSignedness(DialectAsmParser &parser,
     result = TestIntegerType::SignednessSemantics::Signed;
   else if (signStr.compare_lower("n") || signStr.compare_lower("none"))
     result = TestIntegerType::SignednessSemantics::Signless;
-  else {
+  else
     return parser.emitError(loc, "expected signed, unsigned, or none");
-  }
   return success();
 }
 
@@ -102,7 +101,6 @@ static llvm::hash_code hash_value(const FieldInfo &fi) { // NOLINT
 // Example type validity checker.
 LogicalResult TestIntegerType::verifyConstructionInvariants(
     Location loc, TestIntegerType::SignednessSemantics ss, unsigned int width) {
-
   if (width > 8)
     return failure();
   return success();

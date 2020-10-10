@@ -115,11 +115,11 @@ class FieldInfo_Type<string name> : Test_Type<name> {
   //   struct<[{field1Name, field1Type}, {field2Name, field2Type}]
   let printer = [{
     $_printer << "struct" << "<";
-    for (size_t i=0; i<getImpl()->fields.size(); i++) {
-    const auto& field = getImpl()->fields[i];
-    $_printer << "{" << field.name << "," << field.type << "}";
-    if (i < getImpl()->fields.size() - 1)
-        $_printer << ",";
+    for (size_t i=0, e = getImpl()->fields.size(); i < e; i++) {
+      const auto& field = getImpl()->fields[i];
+      $_printer << "{" << field.name << "," << field.type << "}";
+      if (i < getImpl()->fields.size() - 1)
+          $_printer << ",";
     }
     $_printer << ">";
   }];

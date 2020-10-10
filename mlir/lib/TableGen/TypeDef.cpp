@@ -149,9 +149,9 @@ StringRef TypeParameter::getSyntax() const {
   auto *parameterType = def->getArg(num);
   if (auto *stringType = dyn_cast<llvm::StringInit>(parameterType))
     return stringType->getValue();
-  else if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
+  if (auto *typeParameter = dyn_cast<llvm::DefInit>(parameterType)) {
     const auto *syntax = typeParameter->getDef()->getValue("syntax");
-    if (syntax != nullptr && isa<llvm::StringInit>(syntax->getValue()))
+    if (syntax && isa<llvm::StringInit>(syntax->getValue()))
       return dyn_cast<llvm::StringInit>(syntax->getValue())->getValue();
     return getCppType();
   }
