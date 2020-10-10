@@ -24,20 +24,20 @@
 
 using namespace mlir;
 using namespace mlir::tblgen;
+using namespace llvm;
 
-static llvm::cl::OptionCategory typedefGenCat("Options for -gen-typedef-*");
-static llvm::cl::opt<std::string>
-    selectedDialect("typedefs-dialect",
-                    llvm::cl::desc("Gen types for this dialect"),
-                    llvm::cl::cat(typedefGenCat), llvm::cl::CommaSeparated);
+static cl::OptionCategory typedefGenCat("Options for -gen-typedef-*");
+static cl::opt<std::string>
+    selectedDialect("typedefs-dialect", cl::desc("Gen types for this dialect"),
+                    cl::cat(typedefGenCat), cl::CommaSeparated);
 
 /// Find all the TypeDefs for the specified dialect. If no dialect specified and
 /// can only find one dialect's types, use that.
-static void findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
+static void findAllTypeDefs(const RecordKeeper &recordKeeper,
                             SmallVectorImpl<TypeDef> &typeDefs) {
   auto recDefs = recordKeeper.getAllDerivedDefinitions("TypeDef");
-  auto defs = llvm::map_range(
-      recDefs, [&](const llvm::Record *rec) { return TypeDef(rec); });
+  auto defs =
+      map_range(recDefs, [&](const Record *rec) { return TypeDef(rec); });
   if (defs.empty())
     return;
 
@@ -46,19 +46,19 @@ static void findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
     if (defs.empty())
       return;
 
-    llvm::SmallSet<Dialect, 4> dialects;
+    SmallSet<Dialect, 4> dialects;
     for (auto typeDef : defs)
       dialects.insert(typeDef.getDialect());
     if (dialects.size() != 1)
-      llvm::PrintFatalError("TypeDefs belonging to more than one dialect. Must "
-                            "select one via '--typedefs-dialect'");
+      PrintFatalError("TypeDefs belonging to more than one dialect. Must "
+                      "select one via '--typedefs-dialect'");
 
     dialectName = (*dialects.begin()).getName();
   } else if (selectedDialect.getNumOccurrences() == 1) {
     dialectName = selectedDialect.getValue();
   } else {
-    llvm::PrintFatalError("Cannot select multiple dialects for which to "
-                          "generate types via '--typedefs-dialect'.");
+    PrintFatalError("Cannot select multiple dialects for which to "
+                    "generate types via '--typedefs-dialect'.");
   }
 
   for (const TypeDef &typeDef : defs)
@@ -71,7 +71,7 @@ static void findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
 /// parameter `PrependComma` enables prepending a comma if non-zero number of
 /// parameters.
 template <void (*T)(const TypeParameter &, raw_ostream &), bool PrependComma>
-class TypeParamCommaFormatter : public llvm::detail::format_adapter {
+class TypeParamCommaFormatter : public detail::format_adapter {
   ArrayRef<TypeParameter> params;
 
 public:
@@ -82,8 +82,7 @@ public:
   void format(raw_ostream &os, StringRef options) {
     if (params.size() && PrependComma)
       os << ", ";
-    llvm::interleaveComma(params, os,
-                          [&](const TypeParameter &P) { T(P, os); });
+    interleaveComma(params, os, [&](const TypeParameter &P) { T(P, os); });
   }
 };
 
@@ -170,28 +169,24 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
   // Emit the beginning string template: either the singleton or parametric
   // template.
   if (typeDef.getNumParameters() == 0)
-    os << llvm::formatv(typeDefDeclSingletonBeginStr, typeDef.getCppClassName(),
-                        typeDef.getStorageNamespace(),
-                        typeDef.getStorageClassName());
+    os << formatv(typeDefDeclSingletonBeginStr, typeDef.getCppClassName(),
+                  typeDef.getStorageNamespace(), typeDef.getStorageClassName());
   else
-    os << llvm::formatv(
-        typeDefDeclParametricBeginStr, typeDef.getCppClassName(),
-        typeDef.getStorageNamespace(), typeDef.getStorageClassName());
+    os << formatv(typeDefDeclParametricBeginStr, typeDef.getCppClassName(),
+                  typeDef.getStorageNamespace(), typeDef.getStorageClassName());
 
   // Emit the extra declarations first in case there's a type definition in
   // there.
-  if (llvm::Optional<StringRef> extraDecl = typeDef.getExtraDecls())
+  if (Optional<StringRef> extraDecl = typeDef.getExtraDecls())
     os << *extraDecl << "\n";
 
-  os << llvm::formatv("    static {0} get(::mlir::MLIRContext* ctxt{1});\n",
-                      typeDef.getCppClassName(),
-                      emitTypeNamePairsAfterComma(params));
+  os << formatv("    static {0} get(::mlir::MLIRContext* ctxt{1});\n",
+                typeDef.getCppClassName(), emitTypeNamePairsAfterComma(params));
 
   // Emit the verify invariants declaration.
   if (typeDef.genVerifyInvariantsDecl())
-    os << llvm::formatv(typeDefDeclVerifyStr,
-                        emitTypeNamePairsAfterComma(params),
-                        typeDef.getCppClassName());
+    os << formatv(typeDefDeclVerifyStr, emitTypeNamePairsAfterComma(params),
+                  typeDef.getCppClassName());
 
   // Emit the mnenomic, if specified.
   if (auto mnenomic = typeDef.getMnemonic()) {
@@ -208,9 +203,8 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
 
     for (TypeParameter &parameter : parameters) {
       SmallString<16> name = parameter.getName();
-      name[0] = llvm::toUpper(name[0]);
-      os << llvm::formatv("    {0} get{1}() const;\n", parameter.getCppType(),
-                          name);
+      name[0] = toUpper(name[0]);
+      os << formatv("    {0} get{1}() const;\n", parameter.getCppType(), name);
     }
   }
 
@@ -219,7 +213,7 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
 }
 
 /// Main entry point for decls.
-static bool emitTypeDefDecls(const llvm::RecordKeeper &recordKeeper,
+static bool emitTypeDefDecls(const RecordKeeper &recordKeeper,
                              raw_ostream &os) {
   emitSourceFileHeader("TypeDef Declarations", os);
 
@@ -337,31 +331,30 @@ static void emitStorageClass(TypeDef typeDef, raw_ostream &os) {
   typeDef.getParameters(parameters);
 
   // Initialize a bunch of variables to be used later on.
-  auto parameterNames = llvm::map_range(
+  auto parameterNames = map_range(
       parameters, [](TypeParameter parameter) { return parameter.getName(); });
-  auto parameterTypes =
-      llvm::map_range(parameters, [](TypeParameter parameter) {
-        return parameter.getCppType();
-      });
-  auto parameterList = llvm::join(parameterNames, ", ");
-  auto parameterTypeList = llvm::join(parameterTypes, ", ");
+  auto parameterTypes = map_range(parameters, [](TypeParameter parameter) {
+    return parameter.getCppType();
+  });
+  auto parameterList = join(parameterNames, ", ");
+  auto parameterTypeList = join(parameterTypes, ", ");
 
   // 1) Emit most of the storage class up until the hashKey body.
-  os << llvm::formatv(
-      typeDefStorageClassBegin, typeDef.getStorageNamespace(),
-      typeDef.getStorageClassName(), emitTypeNamePairs(parameters),
-      emitTypeNameInitializers(parameters), parameterList, parameterTypeList);
+  os << formatv(typeDefStorageClassBegin, typeDef.getStorageNamespace(),
+                typeDef.getStorageClassName(), emitTypeNamePairs(parameters),
+                emitTypeNameInitializers(parameters), parameterList,
+                parameterTypeList);
 
   // 2) Emit the haskKey method.
   os << "  static ::llvm::hash_code hashKey(const KeyTy &key) {\n";
   // Extract each parameter from the key.
   for (size_t i = 0, e = parameters.size(); i < e; ++i)
-    os << llvm::formatv("      const auto &{0} = std::get<{1}>(key);\n",
-                        parameters[i].getName(), i);
+    os << formatv("      const auto &{0} = std::get<{1}>(key);\n",
+                  parameters[i].getName(), i);
   // Then combine them all. This requires all the parameters types to have a
   // hash_value defined.
   os << "      return ::llvm::hash_combine(";
-  llvm::interleaveComma(parameterNames, os);
+  interleaveComma(parameterNames, os);
   os << ");\n";
   os << "    }\n";
 
@@ -376,19 +369,19 @@ static void emitStorageClass(TypeDef typeDef, raw_ostream &os) {
     // If not, autogenerate one.
 
     // First, unbox the parameters.
-    os << llvm::formatv(typeDefStorageClassConstructorBegin,
-                        typeDef.getStorageClassName());
+    os << formatv(typeDefStorageClassConstructorBegin,
+                  typeDef.getStorageClassName());
     for (size_t i = 0; i < parameters.size(); ++i) {
-      os << llvm::formatv("      auto {0} = std::get<{1}>(key);\n",
-                          parameters[i].getName(), i);
+      os << formatv("      auto {0} = std::get<{1}>(key);\n",
+                    parameters[i].getName(), i);
     }
     // Second, reassign the parameter variables with allocation code, if it's
     // specified.
     emitParameterAllocationCode(typeDef, os);
 
     // Last, return an allocated copy.
-    os << llvm::formatv(typeDefStorageClassConstructorReturn,
-                        typeDef.getStorageClassName(), parameterList);
+    os << formatv(typeDefStorageClassConstructorReturn,
+                  typeDef.getStorageClassName(), parameterList);
   }
 
   // 4) Emit the parameters as storage class members.
@@ -411,10 +404,9 @@ void emitParserPrinter(TypeDef typeDef, raw_ostream &os) {
        << "::print(::mlir::DialectAsmPrinter& printer) const {\n";
     if (*printerCode == "") {
       // If no code specified, emit error.
-      llvm::PrintFatalError(
-          typeDef.getLoc(),
-          typeDef.getName() +
-              ": printer (if specified) must have non-empty code");
+      PrintFatalError(typeDef.getLoc(),
+                      typeDef.getName() +
+                          ": printer (if specified) must have non-empty code");
     }
     auto fmtCtxt = FmtContext().addSubst("_printer", "printer");
     os << tgfmt(*printerCode, &fmtCtxt) << "\n}\n";
@@ -429,10 +421,9 @@ void emitParserPrinter(TypeDef typeDef, raw_ostream &os) {
           "{\n";
     if (*parserCode == "") {
       // if no code specified, emit error.
-      llvm::PrintFatalError(
-          typeDef.getLoc(),
-          typeDef.getName() +
-              ": parser (if specified) must have non-empty code");
+      PrintFatalError(typeDef.getLoc(),
+                      typeDef.getName() +
+                          ": parser (if specified) must have non-empty code");
     }
     auto fmtCtxt =
         FmtContext().addSubst("_parser", "parser").addSubst("_ctxt", "ctxt");
@@ -450,10 +441,10 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
   if (typeDef.genStorageClass() && typeDef.getNumParameters() > 0)
     emitStorageClass(typeDef, os);
 
-  os << llvm::formatv("{0} {0}::get(::mlir::MLIRContext* ctxt{1}) {{\n"
-                      "  return Base::get(ctxt",
-                      typeDef.getCppClassName(),
-                      emitTypeNamePairsAfterComma(parameters));
+  os << formatv("{0} {0}::get(::mlir::MLIRContext* ctxt{1}) {{\n"
+                "  return Base::get(ctxt",
+                typeDef.getCppClassName(),
+                emitTypeNamePairsAfterComma(parameters));
   for (TypeParameter &param : parameters)
     os << ", " << param.getName();
   os << ");\n}\n";
@@ -462,11 +453,10 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
   if (typeDef.genAccessors())
     for (const TypeParameter &parameter : parameters) {
       SmallString<16> name = parameter.getName();
-      name[0] = llvm::toUpper(name[0]);
-      os << llvm::formatv(
-          "{0} {3}::get{1}() const { return getImpl()->{2}; }\n",
-          parameter.getCppType(), name, parameter.getName(),
-          typeDef.getCppClassName());
+      name[0] = toUpper(name[0]);
+      os << formatv("{0} {3}::get{1}() const { return getImpl()->{2}; }\n",
+                    parameter.getCppType(), name, parameter.getName(),
+                    typeDef.getCppClassName());
     }
 
   // If mnemonic is specified maybe print definitions for the parser and printer
@@ -490,10 +480,10 @@ static void emitParsePrintDispatch(SmallVectorImpl<TypeDef> &typeDefs,
         "::mlir::DialectAsmParser& parser, ::llvm::StringRef mnemonic) {\n";
   for (const TypeDef &typeDef : typeDefs)
     if (typeDef.getMnemonic())
-      os << llvm::formatv("  if (mnemonic == {0}::{1}::getMnemonic()) return "
-                          "{0}::{1}::parse(ctxt, parser);\n",
-                          typeDef.getDialect().getCppNamespace(),
-                          typeDef.getCppClassName());
+      os << formatv("  if (mnemonic == {0}::{1}::getMnemonic()) return "
+                    "{0}::{1}::parse(ctxt, parser);\n",
+                    typeDef.getDialect().getCppNamespace(),
+                    typeDef.getCppClassName());
   os << "  return ::mlir::Type();\n";
   os << "}\n\n";
 
@@ -505,10 +495,10 @@ static void emitParsePrintDispatch(SmallVectorImpl<TypeDef> &typeDefs,
      << "  ::llvm::TypeSwitch<::mlir::Type>(type)\n";
   for (auto typeDef : typeDefs)
     if (typeDef.getMnemonic())
-      os << llvm::formatv("    .Case<{0}::{1}>([&](::mlir::Type t) {{ "
-                          "t.dyn_cast<{0}::{1}>().print(printer); })\n",
-                          typeDef.getDialect().getCppNamespace(),
-                          typeDef.getCppClassName());
+      os << formatv("    .Case<{0}::{1}>([&](::mlir::Type t) {{ "
+                    "t.dyn_cast<{0}::{1}>().print(printer); })\n",
+                    typeDef.getDialect().getCppNamespace(),
+                    typeDef.getCppClassName());
   os << "    .Default([&found](::mlir::Type) { found = ::mlir::failure(); "
         "});\n"
      << "  return found;\n"
@@ -516,8 +506,7 @@ static void emitParsePrintDispatch(SmallVectorImpl<TypeDef> &typeDefs,
 }
 
 /// Entry point for typedef definitions.
-static bool emitTypeDefDefs(const llvm::RecordKeeper &recordKeeper,
-                            raw_ostream &os) {
+static bool emitTypeDefDefs(const RecordKeeper &recordKeeper, raw_ostream &os) {
   emitSourceFileHeader("TypeDef Definitions", os);
 
   SmallVector<TypeDef, 16> typeDefs;
@@ -538,12 +527,12 @@ static bool emitTypeDefDefs(const llvm::RecordKeeper &recordKeeper,
 
 static mlir::GenRegistration
     genTypeDefDefs("gen-typedef-defs", "Generate TypeDef definitions",
-                   [](const llvm::RecordKeeper &records, raw_ostream &os) {
+                   [](const RecordKeeper &records, raw_ostream &os) {
                      return emitTypeDefDefs(records, os);
                    });
 
 static mlir::GenRegistration
     genTypeDefDecls("gen-typedef-decls", "Generate TypeDef declarations",
-                    [](const llvm::RecordKeeper &records, raw_ostream &os) {
+                    [](const RecordKeeper &records, raw_ostream &os) {
                       return emitTypeDefDecls(records, os);
                     });
