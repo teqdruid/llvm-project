@@ -82,7 +82,7 @@ public:
   void format(raw_ostream &os, StringRef options) {
     if (params.size() && PrependComma)
       os << ", ";
-    interleaveComma(params, os, [&](const TypeParameter &P) { T(P, os); });
+    interleaveComma(params, os, [&](const TypeParameter &p) { T(p, os); });
   }
 };
 
