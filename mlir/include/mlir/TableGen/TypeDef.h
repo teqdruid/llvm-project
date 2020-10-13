@@ -68,15 +68,15 @@ public:
 
   // Return the keyword/mnemonic to use in the printer/parser methods if we are
   // supposed to auto-generate them.
-  llvm::Optional<StringRef> getMnemonic() const;
+  Optional<StringRef> getMnemonic() const;
 
   // Returns the code to use as the types printer method. If not specified,
   // return a non-value. Otherwise, return the contents of that code block.
-  llvm::Optional<StringRef> getPrinterCode() const;
+  Optional<StringRef> getPrinterCode() const;
 
   // Returns the code to use as the types parser method. If not specified,
   // return a non-value. Otherwise, return the contents of that code block.
-  llvm::Optional<StringRef> getParserCode() const;
+  Optional<StringRef> getParserCode() const;
 
   // Returns true if the accessors based on the types parameters should be
   // generated.
@@ -87,7 +87,7 @@ public:
   bool genVerifyInvariantsDecl() const;
 
   // Returns the dialects extra class declaration code.
-  llvm::Optional<StringRef> getExtraDecls() const;
+  Optional<StringRef> getExtraDecls() const;
 
   // Get the code location (for error printing).
   ArrayRef<llvm::SMLoc> getLoc() const;

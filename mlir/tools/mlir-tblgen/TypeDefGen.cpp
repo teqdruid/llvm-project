@@ -24,20 +24,20 @@
 
 using namespace mlir;
 using namespace mlir::tblgen;
-using namespace llvm;
 
-static cl::OptionCategory typedefGenCat("Options for -gen-typedef-*");
-static cl::opt<std::string>
-    selectedDialect("typedefs-dialect", cl::desc("Gen types for this dialect"),
-                    cl::cat(typedefGenCat), cl::CommaSeparated);
+static llvm::cl::OptionCategory typedefGenCat("Options for -gen-typedef-*");
+static llvm::cl::opt<std::string>
+    selectedDialect("typedefs-dialect",
+                    llvm::cl::desc("Gen types for this dialect"),
+                    llvm::cl::cat(typedefGenCat), llvm::cl::CommaSeparated);
 
 /// Find all the TypeDefs for the specified dialect. If no dialect specified and
 /// can only find one dialect's types, use that.
-static void findAllTypeDefs(const RecordKeeper &recordKeeper,
+static void findAllTypeDefs(const llvm::RecordKeeper &recordKeeper,
                             SmallVectorImpl<TypeDef> &typeDefs) {
   auto recDefs = recordKeeper.getAllDerivedDefinitions("TypeDef");
-  auto defs =
-      map_range(recDefs, [&](const Record *rec) { return TypeDef(rec); });
+  auto defs = llvm::map_range(
+      recDefs, [&](const llvm::Record *rec) { return TypeDef(rec); });
   if (defs.empty())
     return;
 
@@ -46,19 +46,19 @@ static void findAllTypeDefs(const RecordKeeper &recordKeeper,
     if (defs.empty())
       return;
 
-    SmallSet<Dialect, 4> dialects;
-    for (auto typeDef : defs)
+    llvm::SmallSet<Dialect, 4> dialects;
+    for (const TypeDef &typeDef : defs)
       dialects.insert(typeDef.getDialect());
     if (dialects.size() != 1)
-      PrintFatalError("TypeDefs belonging to more than one dialect. Must "
-                      "select one via '--typedefs-dialect'");
+      llvm::PrintFatalError("TypeDefs belonging to more than one dialect. Must "
+                            "select one via '--typedefs-dialect'");
 
     dialectName = (*dialects.begin()).getName();
   } else if (selectedDialect.getNumOccurrences() == 1) {
     dialectName = selectedDialect.getValue();
   } else {
-    PrintFatalError("Cannot select multiple dialects for which to "
-                    "generate types via '--typedefs-dialect'.");
+    llvm::PrintFatalError("Cannot select multiple dialects for which to "
+                          "generate types via '--typedefs-dialect'.");
   }
 
   for (const TypeDef &typeDef : defs)
@@ -66,50 +66,63 @@ static void findAllTypeDefs(const RecordKeeper &recordKeeper,
       typeDefs.push_back(typeDef);
 }
 
-/// Pass an instance of this class to llvm::formatv() to emit a comma separated
-/// list of parameters formatted with template parameter T. The template
-/// parameter `PrependComma` enables prepending a comma if non-zero number of
-/// parameters.
-template <void (*T)(const TypeParameter &, raw_ostream &), bool PrependComma>
-class TypeParamCommaFormatter : public detail::format_adapter {
-  ArrayRef<TypeParameter> params;
+namespace {
 
+/// Pass an instance of this class to llvm::formatv() to emit a comma separated
+/// list of parameters in the format by 'EmitFormat'.
+class TypeParamCommaFormatter : public llvm::detail::format_adapter {
 public:
-  TypeParamCommaFormatter(ArrayRef<TypeParameter> params) : params(params) {}
+  /// Choose the output format
+  enum EmitFormat {
+    /// Emit "parameter1Type parameter1Name, parameter2Type parameter2Name,
+    /// [...]".
+    TypeNamePairs,
+
+    /// Emit ", parameter1Type parameter1Name, parameter2Type parameter2Name,
+    /// [...]".
+    TypeNamePairsPrependComma,
+
+    /// Emit "parameter1(parameter1), parameter2(parameter2), [...]".
+    TypeNameInitializer
+  };
+
+  TypeParamCommaFormatter(EmitFormat emitFormat, ArrayRef<TypeParameter> params)
+      : emitFormat(emitFormat), params(params) {}
 
   /// llvm::formatv will call this function when using an instance as a
   /// replacement value.
   void format(raw_ostream &os, StringRef options) {
-    if (params.size() && PrependComma)
+    if (params.size() && emitFormat == EmitFormat::TypeNamePairsPrependComma)
       os << ", ";
-    interleaveComma(params, os, [&](const TypeParameter &p) { T(p, os); });
+    switch (emitFormat) {
+    case EmitFormat::TypeNamePairs:
+    case EmitFormat::TypeNamePairsPrependComma:
+      interleaveComma(params, os,
+                      [&](const TypeParameter &p) { emitTypeNamePair(p, os); });
+      break;
+    case EmitFormat::TypeNameInitializer:
+      interleaveComma(params, os, [&](const TypeParameter &p) {
+        emitTypeNameInitializer(p, os);
+      });
+      break;
+    }
   }
+
+private:
+  // Emit "paramType paramName".
+  static void emitTypeNamePair(const TypeParameter &param, raw_ostream &os) {
+    os << param.getCppType() << " " << param.getName();
+  }
+  // Emit "paramName(paramName)"
+  void emitTypeNameInitializer(const TypeParameter &param, raw_ostream &os) {
+    os << param.getName() << "(" << param.getName() << ")";
+  }
+
+  EmitFormat emitFormat;
+  ArrayRef<TypeParameter> params;
 };
 
-/// Use with TypeParamCommaFormatter to produce:
-/// parameter1Type parameter1Name, parameter2Type parameter2Name, [...].
-void emitTypeNamePair(const TypeParameter &param, raw_ostream &os) {
-  os << param.getCppType() << " " << param.getName();
-}
-
-/// Emit `parameter1Type parameter1Name, parameter2Type parameter2Name, [...]`
-/// as a value in formatv.
-typedef TypeParamCommaFormatter<emitTypeNamePair, false> emitTypeNamePairs;
-/// Emit `, parameter1Type parameter1Name, parameter2Type parameter2Name, [...]`
-/// as a value in formatv.
-typedef TypeParamCommaFormatter<emitTypeNamePair, true>
-    emitTypeNamePairsAfterComma;
-
-/// Use with TypeParamCommaFormatter to produce:
-/// parameter1(parameter1), parameter2(parameter2), [...].
-void emitTypeNameInitializer(const TypeParameter &param, raw_ostream &os) {
-  os << param.getName() << "(" << param.getName() << ")";
-}
-
-/// Emit `parameter1(parameter1), parameter2(parameter2), [...]` as a value in
-/// formatv.
-typedef TypeParamCommaFormatter<emitTypeNameInitializer, false>
-    emitTypeNameInitializers;
+} // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
 // GEN: TypeDef declarations
@@ -180,13 +193,15 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
   if (Optional<StringRef> extraDecl = typeDef.getExtraDecls())
     os << *extraDecl << "\n";
 
-  os << formatv("    static {0} get(::mlir::MLIRContext* ctxt{1});\n",
-                typeDef.getCppClassName(), emitTypeNamePairsAfterComma(params));
+  TypeParamCommaFormatter emitTypeNamePairsAfterComma(
+      TypeParamCommaFormatter::EmitFormat::TypeNamePairsPrependComma, params);
+  os << llvm::formatv("    static {0} get(::mlir::MLIRContext* ctxt{1});\n",
+                      typeDef.getCppClassName(), emitTypeNamePairsAfterComma);
 
   // Emit the verify invariants declaration.
   if (typeDef.genVerifyInvariantsDecl())
-    os << formatv(typeDefDeclVerifyStr, emitTypeNamePairsAfterComma(params),
-                  typeDef.getCppClassName());
+    os << llvm::formatv(typeDefDeclVerifyStr, emitTypeNamePairsAfterComma,
+                        typeDef.getCppClassName());
 
   // Emit the mnenomic, if specified.
   if (auto mnenomic = typeDef.getMnemonic()) {
@@ -203,7 +218,7 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
 
     for (TypeParameter &parameter : parameters) {
       SmallString<16> name = parameter.getName();
-      name[0] = toUpper(name[0]);
+      name[0] = llvm::toUpper(name[0]);
       os << formatv("    {0} get{1}() const;\n", parameter.getCppType(), name);
     }
   }
@@ -213,7 +228,7 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
 }
 
 /// Main entry point for decls.
-static bool emitTypeDefDecls(const RecordKeeper &recordKeeper,
+static bool emitTypeDefDecls(const llvm::RecordKeeper &recordKeeper,
                              raw_ostream &os) {
   emitSourceFileHeader("TypeDef Declarations", os);
 
@@ -340,10 +355,14 @@ static void emitStorageClass(TypeDef typeDef, raw_ostream &os) {
   auto parameterTypeList = join(parameterTypes, ", ");
 
   // 1) Emit most of the storage class up until the hashKey body.
-  os << formatv(typeDefStorageClassBegin, typeDef.getStorageNamespace(),
-                typeDef.getStorageClassName(), emitTypeNamePairs(parameters),
-                emitTypeNameInitializers(parameters), parameterList,
-                parameterTypeList);
+  os << formatv(
+      typeDefStorageClassBegin, typeDef.getStorageNamespace(),
+      typeDef.getStorageClassName(),
+      TypeParamCommaFormatter(
+          TypeParamCommaFormatter::EmitFormat::TypeNamePairs, parameters),
+      TypeParamCommaFormatter(
+          TypeParamCommaFormatter::EmitFormat::TypeNameInitializer, parameters),
+      parameterList, parameterTypeList);
 
   // 2) Emit the haskKey method.
   os << "  static ::llvm::hash_code hashKey(const KeyTy &key) {\n";
@@ -441,10 +460,13 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
   if (typeDef.genStorageClass() && typeDef.getNumParameters() > 0)
     emitStorageClass(typeDef, os);
 
-  os << formatv("{0} {0}::get(::mlir::MLIRContext* ctxt{1}) {{\n"
-                "  return Base::get(ctxt",
-                typeDef.getCppClassName(),
-                emitTypeNamePairsAfterComma(parameters));
+  os << llvm::formatv(
+      "{0} {0}::get(::mlir::MLIRContext* ctxt{1}) {{\n"
+      "  return Base::get(ctxt",
+      typeDef.getCppClassName(),
+      TypeParamCommaFormatter(
+          TypeParamCommaFormatter::EmitFormat::TypeNamePairsPrependComma,
+          parameters));
   for (TypeParameter &param : parameters)
     os << ", " << param.getName();
   os << ");\n}\n";
@@ -453,7 +475,7 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
   if (typeDef.genAccessors())
     for (const TypeParameter &parameter : parameters) {
       SmallString<16> name = parameter.getName();
-      name[0] = toUpper(name[0]);
+      name[0] = llvm::toUpper(name[0]);
       os << formatv("{0} {3}::get{1}() const { return getImpl()->{2}; }\n",
                     parameter.getCppType(), name, parameter.getName(),
                     typeDef.getCppClassName());
@@ -506,7 +528,8 @@ static void emitParsePrintDispatch(SmallVectorImpl<TypeDef> &typeDefs,
 }
 
 /// Entry point for typedef definitions.
-static bool emitTypeDefDefs(const RecordKeeper &recordKeeper, raw_ostream &os) {
+static bool emitTypeDefDefs(const llvm::RecordKeeper &recordKeeper,
+                            raw_ostream &os) {
   emitSourceFileHeader("TypeDef Definitions", os);
 
   SmallVector<TypeDef, 16> typeDefs;
@@ -527,12 +550,12 @@ static bool emitTypeDefDefs(const RecordKeeper &recordKeeper, raw_ostream &os) {
 
 static mlir::GenRegistration
     genTypeDefDefs("gen-typedef-defs", "Generate TypeDef definitions",
-                   [](const RecordKeeper &records, raw_ostream &os) {
+                   [](const llvm::RecordKeeper &records, raw_ostream &os) {
                      return emitTypeDefDefs(records, os);
                    });
 
 static mlir::GenRegistration
     genTypeDefDecls("gen-typedef-decls", "Generate TypeDef declarations",
-                    [](const RecordKeeper &records, raw_ostream &os) {
+                    [](const llvm::RecordKeeper &records, raw_ostream &os) {
                       return emitTypeDefDecls(records, os);
                     });
