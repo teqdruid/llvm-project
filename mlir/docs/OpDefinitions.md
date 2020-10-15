@@ -1412,7 +1412,7 @@ llvm::Optional<MyBitEnum> symbolizeMyBitEnum(uint32_t value) {
 }
 ```
 
-## TypeDefs
+## Data Type Definitions
 
 MLIR defines the TypeDef class hierarchy to enable generation of data types
 from their specifications. A type is defined by specializing the TypeDef
@@ -1430,8 +1430,8 @@ def IntegerType : Test_Type<"TestInteger"> {
   let summary = "An integer type with special semantics";
 
   let description = [{
-An alternate integer type. This type differentiates itself from the std int by
-not having a SignednessSemantics parameter, just a width.
+An alternate integer type. This type differentiates itself from the standard
+integer type by not having a SignednessSemantics parameter, just a width.
   }];
 
   let parameters = (
@@ -1535,11 +1535,28 @@ let parameters = (ins
 
 ### Parsing and printing
 
-If a mnemonic is specified, the `printer` and `parser` code fields are active. The rules for both are:
+If a mnemonic is specified, the `printer` and `parser` code fields are active.
+The rules for both are:
 - If null, generate just the declaration.
 - If non-null and non-empty, use the code in the definition. The `$_printer`
 or `$_parser` substitutions are valid and should be used.
 - It is an error to have an empty code block.
+
+For each dialect, two "dispatch" functions will be created: one for parsing
+and one for printing. You should add calls to these in your
+`Dialect::printType` and `Dialect::parseType` methods. They are created in
+the dialect's namespace and their function signatures are:
+```c++
+Type generatedTypeParser(MLIRContext* ctxt, DialectAsmParser& parser,
+                         StringRef mnemonic);
+LogicalResult generatedTypePrinter(Type type, DialectAsmPrinter& printer);
+```
+
+The mnemonic, parser, and printer fields are optional. If they're not
+defined, the generated code will not include any parsing or printing code and
+omit the type from the dispatch functions above. In this case, the dialect
+author is responsible for parsing/printing the types in `Dialect::printType`
+and `Dialect::parseType`.
 
 ### Other fields
 
