@@ -85,9 +85,9 @@ public:
     JustParams,
   };
 
-  TypeParamCommaFormatter(EmitFormat emitFormat, bool prependComma,
-                          ArrayRef<TypeParameter> params)
-      : emitFormat(emitFormat), prependComma(prependComma), params(params) {}
+  TypeParamCommaFormatter(EmitFormat emitFormat, ArrayRef<TypeParameter> params,
+                          bool prependComma = true)
+      : emitFormat(emitFormat), params(params), prependComma(prependComma) {}
 
   /// llvm::formatv will call this function when using an instance as a
   /// replacement value.
@@ -123,8 +123,8 @@ private:
   }
 
   EmitFormat emitFormat;
-  bool prependComma;
   ArrayRef<TypeParameter> params;
+  bool prependComma;
 };
 
 } // end anonymous namespace
@@ -198,7 +198,7 @@ static void emitTypeDefDecl(const TypeDef &typeDef, raw_ostream &os) {
     os << *extraDecl << "\n";
 
   TypeParamCommaFormatter emitTypeNamePairsAfterComma(
-      TypeParamCommaFormatter::EmitFormat::TypeNamePairs, true, params);
+      TypeParamCommaFormatter::EmitFormat::TypeNamePairs, params);
   os << llvm::formatv("    static {0} get(::mlir::MLIRContext* ctxt{1});\n",
                       typeDef.getCppClassName(), emitTypeNamePairsAfterComma);
 
@@ -372,11 +372,11 @@ static void emitStorageClass(TypeDef typeDef, raw_ostream &os) {
   os << formatv(typeDefStorageClassBegin, typeDef.getStorageNamespace(),
                 typeDef.getStorageClassName(),
                 TypeParamCommaFormatter(
-                    TypeParamCommaFormatter::EmitFormat::TypeNamePairs, false,
-                    parameters),
+                    TypeParamCommaFormatter::EmitFormat::TypeNamePairs,
+                    parameters, /*prependComma=*/false),
                 TypeParamCommaFormatter(
                     TypeParamCommaFormatter::EmitFormat::TypeNameInitializer,
-                    false, parameters),
+                    parameters, /*prependComma=*/false),
                 parameterList, parameterTypeList);
 
   // 2) Emit the haskKey method.
@@ -390,7 +390,7 @@ static void emitStorageClass(TypeDef typeDef, raw_ostream &os) {
   os << llvm::formatv(
       "      return ::llvm::hash_combine({0});\n    }\n",
       TypeParamCommaFormatter(TypeParamCommaFormatter::EmitFormat::JustParams,
-                              false, parameters));
+                              parameters, /* prependComma */ false));
 
   // 3) Emit the construct method.
   if (typeDef.hasStorageCustomConstructor())
@@ -480,9 +480,9 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
       "  return Base::get(ctxt{2});\n}\n",
       typeDef.getCppClassName(),
       TypeParamCommaFormatter(
-          TypeParamCommaFormatter::EmitFormat::TypeNamePairs, true, parameters),
+          TypeParamCommaFormatter::EmitFormat::TypeNamePairs, parameters),
       TypeParamCommaFormatter(TypeParamCommaFormatter::EmitFormat::JustParams,
-                              true, parameters));
+                              parameters));
 
   // Emit the parameter accessors.
   if (typeDef.genAccessors())
@@ -495,15 +495,15 @@ static void emitTypeDefDef(TypeDef typeDef, raw_ostream &os) {
     }
 
   // Generate getChecked() method.
-  if (typeDef.genVerifyInvariantsDecl())
+  if (typeDef.genVerifyInvariantsDecl()) {
     os << llvm::formatv(
         typeDefDefGetCheckeStr,
         TypeParamCommaFormatter(
-            TypeParamCommaFormatter::EmitFormat::TypeNamePairs, true,
-            parameters),
+            TypeParamCommaFormatter::EmitFormat::TypeNamePairs, parameters),
         typeDef.getCppClassName(),
         TypeParamCommaFormatter(TypeParamCommaFormatter::EmitFormat::JustParams,
-                                true, parameters));
+                                parameters));
+  }
 
   // If mnemonic is specified maybe print definitions for the parser and printer
   // code, if they're specified.
