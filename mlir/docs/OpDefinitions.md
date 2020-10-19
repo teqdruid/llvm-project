@@ -1412,7 +1412,7 @@ llvm::Optional<MyBitEnum> symbolizeMyBitEnum(uint32_t value) {
 }
 ```
 
-## Data Type Definitions
+## Type Definitions
 
 MLIR defines the TypeDef class hierarchy to enable generation of data types
 from their specifications. A type is defined by specializing the TypeDef
@@ -1430,14 +1430,12 @@ def IntegerType : Test_Type<"TestInteger"> {
   let summary = "An integer type with special semantics";
 
   let description = [{
-An alternate integer type. This type differentiates itself from the standard
-integer type by not having a SignednessSemantics parameter, just a width.
+    An alternate integer type. This type differentiates itself from the
+    standard integer type by not having a SignednessSemantics parameter, just
+    a width.
   }];
 
-  let parameters = (
-    ins
-    "unsigned":$width
-  );
+  let parameters = (ins "unsigned":$width);
 
   // We define the printer inline.
   let printer = [{
@@ -1446,10 +1444,13 @@ integer type by not having a SignednessSemantics parameter, just a width.
 
   // The parser is defined here also.
   let parser = [{
-    if (parser.parseLess()) return Type();
+    if (parser.parseLess())
+      return Type();
     int width;
-    if ($_parser.parseInteger(width)) return Type();
-    if ($_parser.parseGreater()) return Type();
+    if ($_parser.parseInteger(width))
+      return Type();
+    if ($_parser.parseGreater())
+      return Type();
     return get(ctxt, width);
   }];
 ```
@@ -1465,7 +1466,7 @@ will imply that no parser or printer methods are attached to this class.
 ### Type documentation
 
 The `summary` and `description` fields exist and are to be used the same way
-is in Operations. Namely, the summary should be a one-liner and `description`
+as in Operations. Namely, the summary should be a one-liner and `description`
 should be a longer explanation.
 
 ### Type parameters
@@ -1476,10 +1477,10 @@ Parameters are in the `"c++Type":$paramName` format.
 To use C++ types as parameters which need allocation in the storage
 constructor, there are two options:
 
-- Set `hasCustomStorageConstructor` will generate the TypeStorage class with
+- Set `hasCustomStorageConstructor` to generate the TypeStorage class with
 a constructor which is just declared -- no definition -- so you can write it
 yourself.
-- Use a `TypeParameter` tablegen class instead of the "c++Type" string.
+- Use the `TypeParameter` tablegen class instead of the "c++Type" string.
 
 ### TypeParameter tablegen class
 
@@ -1521,8 +1522,8 @@ MLIR includes several specialized classes for common situations:
 - `ArrayRefParameter<arrayOf, descriptionOfParam>` for ArrayRefs of value
 types
 - `SelfAllocationParameter<descriptionOfParam>` for C++ classes which contain
-a method called `allocateInto(StorageAllocator allocator)` to allocate itself
-into `allocator`.
+a method called `allocateInto(StorageAllocator &allocator)` to allocate
+itself into `allocator`.
 - `ArrayRefOfSelfAllocationParameter<arrayOf, descriptionOfParam>` for arrays
 of objects which self-allocate as per the last specialization.
 
@@ -1530,7 +1531,8 @@ If we were to use one of these included specializations:
 
 ```tablegen
 let parameters = (ins
-  ArrayRefParameter<"int", "The dimensions">:$dims);
+  ArrayRefParameter<"int", "The dimensions">:$dims
+);
 ```
 
 ### Parsing and printing
@@ -1576,8 +1578,6 @@ method which gets the result of `verifyConstructionInvariants` before calling
 class should sit. Defaults to "detail".
 - The `extraClassDeclaration` field is used to include extra code in the
 class declaration.
-
-
 
 ## Debugging Tips
 
